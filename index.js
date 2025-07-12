@@ -1,0 +1,46 @@
+const express = require('express');
+const cors = require('cors');
+
+const thali = require('./routes/thali/thali');
+const thaliDish = require('./routes/thali/thaliDish');
+
+const vegRestaurant = require('./routes/restaurant/vegRestaurant');
+const nonvegRestaurant = require('./routes/restaurant/nonVegRestaurant');
+const southIndianRestaurant = require('./routes/restaurant/southRestaurant');
+
+const vegMenu = require('./routes/menu/vegMenu');
+const nonVegMenu = require('./routes/menu/nonVegMenu');
+const southIndianMenu = require('./routes/menu/southIndianMenu');
+
+const whishList = require('./routes/user/whishlist');
+const cart = require('./routes/user/cart');
+const order = require('./routes/user/order');
+const user = require('./routes/user/auth');
+
+const app = express()
+const port = 3000
+
+app.use(cors());
+app.use(express.json());
+
+
+app.use('/thali', thali);
+app.use('/thaidish', thaliDish);
+app.use('/vegrestaurant', vegRestaurant);
+app.use('/nonvegrestaurant', nonvegRestaurant);
+app.use('/southindianrestaurants', southIndianRestaurant);
+app.use('/vegmenu', vegMenu);
+app.use('/nonvegmenu', nonVegMenu);
+app.use('/southindianmenu', southIndianMenu);
+app.use('/whishlist', whishList);
+app.use('/cart', cart);
+app.use('/order', order);
+app.use('/user', user);
+
+app.get('/', (req, res) => {
+    return res.send('hello world!');
+})
+
+app.listen(port, () => {
+    console.log(`Example app listening on port http://localhost:${port}`)
+})
