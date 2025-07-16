@@ -25,7 +25,7 @@ app.use(express.json());
 
 
 app.use('/thali', thali);
-app.use('/thaidish', thaliDish);
+app.use('/thalidish', thaliDish);
 app.use('/vegrestaurant', vegRestaurant);
 app.use('/nonvegrestaurant', nonvegRestaurant);
 app.use('/southindianrestaurants', southIndianRestaurant);
@@ -36,6 +36,9 @@ app.use('/whishlist', whishList);
 app.use('/cart', cart);
 app.use('/order', order);
 app.use('/user', user);
+
+app.use('/uploads', express.static('uploads'));
+
 
 app.get('/', (req, res) => {
     return res.send('hello world!');
