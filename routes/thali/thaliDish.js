@@ -2,14 +2,16 @@ const express = require('express');
 const connection = require('../../db');
 const route = express.Router();
 
-// http://localhost:3000/thaidish/thali/1
-route.get('/thai/:thali_id', (req, res) => {
-    const query = "select * from thali_dishes where thali_id = ?";
-    connection.query(query, [req.params.thali_id], (err, result) => {
-        if(err) return res.send("error occured in get the thali dish", err).status(500);
-        return res.send(result[0]).status(200);
+// http://localhost:3000/thalidish/thali/1
+route.get('/thali/:thali_id', (req, res) => {
+    const thali_id = req.params.thali_id;
+    const query = "SELECT * FROM thali_dishes WHERE thali_id = ?";
+    connection.query(query, [thali_id], (err, result) => {
+        if (err) return res.status(500).send("Error occurred in getting the thali dishes: " + err);
+        return res.status(200).send(result);
     });
 });
+
 
 // http://localhost:3000/thaidish/create/1
 route.post('/create/:thali_id', (req, res) => {
