@@ -104,7 +104,7 @@ const sendMail = async (userEmail) => {
         service: "gmail",
         auth: {
             user: process.env.MAIL,
-            pass: process.env.PASSWORD,   
+            pass: process.env.MAIL_PASSWORD,   
         },
     });
 
