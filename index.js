@@ -41,8 +41,13 @@ app.use('/uploads', express.static('uploads'));
 
 
 app.get('/', (req, res) => {
-    return res.send('hello world!');
-})
+    return res.send('Welcome to foodio!');
+});
+
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
 
 app.listen(port, () => {
     console.log(`Example app listening on port http://localhost:${port}`)
