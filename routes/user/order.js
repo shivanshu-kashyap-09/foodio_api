@@ -8,7 +8,7 @@ route.get('/get/:user_id', async (req, res) => {
     try {
         const cacheKey = `orderByUserId:${req.params.user_id}`;
         const cache = await redis.get(cacheKey);
-        if(Cache) return res.status(200).json(JSON.parse(cache));
+        if(cache) return res.status(200).json(JSON.parse(cache));
         const query = "SELECT * FROM orders WHERE user_id = ?";
         connection.query(query, [req.params.user_id], async (err, result) => {
             if (err) {
