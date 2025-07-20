@@ -3,6 +3,12 @@ const connection = require('../../db');
 const redis = require('../../redis');
 const route = express.Router();
 
+route.get('/all', (req, res) => {
+    connection.query('select * from vegmenu', (err, result) => {
+        return res.status(200).send(result);
+    })
+})
+
 // http://localhost:3000/vegmenu/restaurant/1
 route.get("/restaurant/:restaurant_id", async (req, res) => {
     try {
