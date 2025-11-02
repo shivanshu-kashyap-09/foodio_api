@@ -12,7 +12,7 @@ Prerequisites:
 Install and start the server:
 
 ```powershell
-cd <path-to-repo>/foodio_api
+cd <path-to-repo>
 npm install
 node index.js
 ```
