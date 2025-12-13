@@ -1,10 +1,13 @@
 const express = require('express');
 const connection = require('../../db');
 const redis = require('../../redis');
-const route = express.Router();
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const route = express.Router();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -17,11 +20,21 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// http://localhost:3000/user/get/all
+route.get('/get/all', (req,res) => {
+  const query = 'SELECT * FROM user';
+  connection.query(query, (err, result) => {
+    if (err) return res.status(500).json({ message: 'Database error', error: err });
+    return res.status(200).json(result);
+  });
+})
+
+// http://localhost:3000/user/get/1
 route.get('/get/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const cache = await redis.get(`userById:${id}`);
-    if (cache) return res.status(200).json(JSON.parse(cache));
+    // const cache = await redis.get(`userById:${id}`);
+    // if (cache) return res.status(200).json(JSON.parse(cache));
     const query = 'SELECT * FROM user WHERE user_id = ?';
     connection.query(query, [id], async (err, result) => {
       if (err) return res.status(500).json({ message: 'Database error', error: err });
@@ -34,6 +47,7 @@ route.get('/get/:id', async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/update/1
 route.put('/update/:id', upload.single('user_img'), async (req, res) => {
   const { id } = req.params;
   const { user_name, user_phone, user_gmail, user_address } = req.body;
@@ -61,21 +75,27 @@ route.put('/update/:id', upload.single('user_img'), async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/login
 route.post('/login', async (req, res) => {
   const { user, password } = req.body;
   try {
-    const query = "SELECT * FROM user WHERE (user_gmail = ? OR user_phone = ?) AND user_password = ?";
-    connection.query(query, [user, user, password], async (err, result) => {
+    const query = "select * from user where (user_gmail = ? OR user_phone = ?)";
+    connection.query(query, [user, user], async (err, result) => {
       if (err) return res.status(500).json({ message: 'Login failed', error: err });
-      if (result.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
-      if (result[0].user_verify == 0) return res.status(403).json({ message: 'User is not verified' });
-      return res.status(200).json(result[0]);
+      if (result.length === 0) return res.status(401).json({result, message: 'Invalid credentials' });
+      const isMatch = bcrypt.compare(password, result[0].user_password);
+      if(!isMatch) return res.status(401).json({ message: 'Password is Wrong' });
+      const token = jwt.sign(
+        { userId: result[0].user_id, userName: result[0].user_name },
+        process.env.JWT_SECRET,{ expiresIn: '7d' });
+        return res.status(200).json({"result" : result[0], token });
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error });
   }
 });
 
+// http://localhost:3000/user/signup
 route.post('/signup', async (req, res) => {
   const { userName, userEmail, userPhone, userPassword } = req.body;
   try {
@@ -88,8 +108,9 @@ route.post('/signup', async (req, res) => {
       if (result.length > 0) {
         return res.status(409).json({ error: "User already exists" });
       }
+      const hashedPassword = bcrypt.hashSync(userPassword, 10);
       const query = "INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify) VALUES (?, ?, ?, ?, 0)";
-      connection.query(query, [userName, userEmail, userPhone, userPassword], async (err, result) => {
+      connection.query(query, [userName, userEmail, userPhone, hashedPassword], async (err, result) => {
         if (err) return res.status(500).json({ message: 'Signup failed', error: err });
         try {
           await sendMail(userEmail);
@@ -104,6 +125,7 @@ route.post('/signup', async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/verify
 route.get('/verify', async (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ message: 'Email is required' });
@@ -112,6 +134,7 @@ route.get('/verify', async (req, res) => {
     connection.query(query, [email], (err, result) => {
       if (err) return res.status(500).json({ message: 'Verification failed', error: err });
       if (result.affectedRows === 0) return res.status(404).json({ message: 'Email not found or already verified' });
+
       return res.status(200).json({ message: 'Email verified successfully!' });
     });
   } catch (error) {
@@ -119,6 +142,7 @@ route.get('/verify', async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/forget-password
 route.post('/forget-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: 'Email is required' });
@@ -141,6 +165,7 @@ route.post('/forget-password', async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/verify-otp
 route.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
@@ -155,6 +180,7 @@ route.post('/verify-otp', async (req, res) => {
   }
 });
 
+// http://localhost:3000/user/reset-password
 route.post('/reset-password', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
