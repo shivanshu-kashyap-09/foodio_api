@@ -18,6 +18,7 @@ const order = require('./routes/user/order');
 const user = require('./routes/user/auth');
 const contact = require('./routes/user/contact');
 const googleAuth = require('./routes/user/GoogleOauth2');
+const razorpay = require('./routes/user/razorpay');
 
 const app = express()
 const port = 3000
@@ -40,6 +41,7 @@ app.use('/order', order);
 app.use('/user', user);
 app.use('/contact', contact);
 app.use('/auth', googleAuth);
+app.use('/razorpay', razorpay);
 
 app.use('/uploads', express.static('uploads'));
 
