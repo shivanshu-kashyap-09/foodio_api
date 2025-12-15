@@ -3,15 +3,15 @@ const mysql = require('mysql2');
 const fs = require('fs');
 
 const connection = mysql.createConnection({
-  // host: process.env.HOST_NAME,
-  // user: process.env.USER,
-  // password: process.env.PASSWORD,
-  // database: process.env.DATABASE,
-  host: 'localhost',
-  user: 'root',
-  // password: '9458',
-  database: 'foodio',
-  port: 3307
+  host: process.env.HOST_NAME,
+  user: process.env.USER,
+  password: process.env.PASSWORD,
+  database: process.env.DATABASE,
+  // host: 'localhost',
+  // user: 'root',
+  // // password: '',
+  // database: 'foodio',
+  // port: 3307
 });
 connection.connect((err) => {
   if (err) {
