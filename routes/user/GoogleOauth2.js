@@ -1,6 +1,8 @@
 const express = require('express');
 const connection = require('../../db')
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require("crypto");
 const router = express.Router();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -44,12 +46,27 @@ router.get('/google/callback', async (req, res) => {
             })
         });
         const tokenData = await tokenResponse.json();
+        if (!tokenData.access_token) {
+      return res.status(401).send("Failed to obtain access token");
+    }
         const accessToken = tokenData.access_token;
-        const userInfoResponse = await fetch(`${GOOGLE_TOKEN_INFO_URL}?access_token=${accessToken}`);
+        const userInfoResponse = await fetch(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            }
+        );
+
         const userInfo = await userInfoResponse.json();
+        if (!userInfo.email) {
+      return res.status(401).send("Google authentication failed");
+    }
         // console.log(userInfo);
         const email = userInfo.email;
-        const name = userInfo.name;
+        const name = userInfo.name || userInfo.given_name || "Google User";
+        const picture = userInfo.picture || null;
         const phone = '0000000000';
         const checkQuery = "SELECT * FROM user WHERE user_gmail = ?";
         connection.query(checkQuery, [email], (err, result) => {
@@ -62,15 +79,18 @@ router.get('/google/callback', async (req, res) => {
                     user_gmail: result[0].user_gmail
                 };
             }
-            if(result.length > 0) {
+            if (result.length > 0) {
                 return redirectUser(result[0]);
             }
-
+            const password = bcrypt.hashSync(
+                crypto.randomBytes(16).toString("hex"),
+                10
+            );
             connection.query(
-                "INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify) VALUES (?, ?, ?, 1)",
-                [user.user_name, email, phone, user.user_name],
+                "INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_img, user_verify) VALUES (?, ?, ?, ?, ?, 1)",
+                [name, email, phone, password, picture],
                 (err, insertResult) => {
-                    if (err) return res.status(500).send("Insert error");
+                    if (err) return res.status(500).send("Insert error" + err);
 
                     const newUser = {
                         user_id: insertResult.insertId,
