@@ -97,9 +97,9 @@ route.post('/login', async (req, res) => {
 
 // http://localhost:3000/user/signup
 route.post('/signup', async (req, res) => {
-  const { userName, userEmail, userPhone, userPassword } = req.body;
+  const { userName, userEmail, userPhone, userPassword, userRole } = req.body;
   try {
-    if (!userName || !userEmail || !userPhone || !userPassword) {
+    if (!userName || !userEmail || !userPhone || !userPassword || !userRole) {
       return res.status(400).json({ error: 'All fields are required' });
     }
     const checkQuery = "SELECT * FROM user WHERE user_gmail = ?";
@@ -109,8 +109,8 @@ route.post('/signup', async (req, res) => {
         return res.status(409).json({ error: "User already exists" });
       }
       const hashedPassword = bcrypt.hashSync(userPassword, 10);
-      const query = "INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify) VALUES (?, ?, ?, ?, 0)";
-      connection.query(query, [userName, userEmail, userPhone, hashedPassword], async (err, result) => {
+      const query = "INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify, role) VALUES (?, ?, ?, ?, 1, ?)";
+      connection.query(query, [userName, userEmail, userPhone, hashedPassword, userRole], async (err, result) => {
         if (err) return res.status(500).json({ message: 'Signup failed', error: err });
         try {
           await sendMail(userEmail);
@@ -195,6 +195,20 @@ route.post('/reset-password', async (req, res) => {
     return res.status(500).json({ message: 'Server error', error });
   }
 });
+
+// http://localhost:3000/user/send-otp
+route.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    await sendOtpMail(email, otp);
+    return res.status(200).json({ message: 'OTP sent to your email' });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    return res.status(500).json({ message: 'Server error', error });
+  }
+})
 
 const sendMail = async (userEmail) => {
   const transporter = nodemailer.createTransport({
