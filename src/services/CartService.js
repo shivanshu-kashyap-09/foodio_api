@@ -16,23 +16,10 @@ class CartService {
     static async getCart(userId) {
         try {
             const query = `
-                SELECT c.*, m.item_name, m.item_price
-                FROM cart c
-                JOIN vegmenu m ON c.item_id = m.id
-                WHERE c.user_id = ?
-                UNION ALL
-                SELECT c.*, m.item_name, m.item_price
-                FROM cart c
-                JOIN nonvegmenu m ON c.item_id = m.id
-                WHERE c.user_id = ?
-                UNION ALL
-                SELECT c.*, m.item_name, m.item_price
-                FROM cart c
-                JOIN southindianmenu m ON c.item_id = m.id
-                WHERE c.user_id = ?
+                select * from cart where user_id = ?
             `;
 
-            const cartItems = await Database.query(query, [userId, userId, userId]);
+            const cartItems = await Database.query(query, [userId]);
 
             const total = cartItems.reduce((sum, item) => sum + (item.item_price * item.quantity), 0);
 
@@ -50,12 +37,11 @@ class CartService {
     /**
      * Add item to cart
      */
-    static async addToCart(userId, itemId, quantity) {
+    static async addToCart(userId, itemId, dishType, quantity) {
         try {
             // Check if item already in cart
             const existingQuery = `
-                SELECT id, quantity FROM cart
-                WHERE user_id = ? AND item_id = ?
+               select * from cart where user_id = ? and dish_id = ?
             `;
 
             const existing = await Database.queryOne(existingQuery, [userId, itemId]);
@@ -65,7 +51,7 @@ class CartService {
                 const updateQuery = `
                     UPDATE cart
                     SET quantity = quantity + ?
-                    WHERE user_id = ? AND item_id = ?
+                    WHERE user_id = ? AND dish_id = ?
                 `;
 
                 await Database.query(updateQuery, [quantity, userId, itemId]);
@@ -76,11 +62,11 @@ class CartService {
             } else {
                 // Add new item
                 const insertQuery = `
-                    INSERT INTO cart (user_id, item_id, quantity, created_at)
-                    VALUES (?, ?, ?, NOW())
+                    INSERT INTO cart (user_id, dish_id, dish_type, quantity, created_at)
+                    VALUES (?, ?, ?, ?, NOW())
                 `;
 
-                const result = await Database.query(insertQuery, [userId, itemId, quantity]);
+                const result = await Database.query(insertQuery, [userId, itemId, dishType, quantity]);
 
                 logger.info('Item added to cart', { userId, itemId });
 
@@ -104,7 +90,7 @@ class CartService {
             const query = `
                 UPDATE cart
                 SET quantity = ?
-                WHERE user_id = ? AND item_id = ?
+                WHERE user_id = ? AND dish_id = ?
             `;
 
             const result = await Database.query(query, [quantity, userId, itemId]);
@@ -129,7 +115,7 @@ class CartService {
         try {
             const query = `
                 DELETE FROM cart
-                WHERE user_id = ? AND item_id = ?
+                WHERE user_id = ? AND dish_id = ?
             `;
 
             const result = await Database.query(query, [userId, itemId]);

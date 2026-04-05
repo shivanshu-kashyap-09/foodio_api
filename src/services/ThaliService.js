@@ -56,7 +56,7 @@ class ThaliService {
                 return JSON.parse(cached);
             }
 
-            const query = `SELECT * FROM thali WHERE id = ?`;
+            const query = `SELECT * FROM thali WHERE thali_id = ?`;
             const result = await Database.queryOne(query, [id]);
 
             if (result) {
@@ -76,24 +76,10 @@ class ThaliService {
     static async getThaliDishes(thaliId) {
         try {
             const query = `
-                SELECT td.*, 
-                       m.item_name,
-                       m.item_price,
-                       m.item_description
-                FROM thali_dishes td
-                LEFT JOIN vegmenu m ON td.dish_id = m.id AND td.menu_type = 'veg'
-                WHERE td.thali_id = ?
-                UNION ALL
-                SELECT td.*,
-                       m.item_name,
-                       m.item_price,
-                       m.item_description
-                FROM thali_dishes td
-                LEFT JOIN nonvegmenu m ON td.dish_id = m.id AND td.menu_type = 'nonveg'
-                WHERE td.thali_id = ?
+                SELECT * FROM thali_dishes WHERE thali_id = ?
             `;
 
-            const dishes = await Database.query(query, [thaliId, thaliId]);
+            const dishes = await Database.query(query, [thaliId]);
 
             return dishes;
         } catch (error) {

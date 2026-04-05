@@ -20,11 +20,12 @@ class OrderService {
             connection = await Database.beginTransaction();
 
             const {
-                restaurant_id,
-                delivery_address,
-                special_instructions,
-                payment_method,
-                total_amount,
+                restaurantId,
+                deliveryAddress,
+                specialInstructions,
+                phone,
+                paymentMethod,
+                totalAmount,
                 items,
             } = orderData;
 
@@ -32,23 +33,27 @@ class OrderService {
             const orderQuery = `
                 INSERT INTO orders (
                     user_id,
+                    items,
                     restaurant_id,
                     delivery_address,
+                    phone,
                     special_instructions,
                     payment_method,
                     total_amount,
                     status,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `;
 
             const orderResult = await connection.execute(orderQuery, [
                 userId,
-                restaurant_id,
-                delivery_address,
-                special_instructions,
-                payment_method,
-                total_amount,
+                items.length,
+                restaurantId,
+                deliveryAddress,
+                phone || null,
+                specialInstructions,
+                paymentMethod,
+                totalAmount,
                 'pending',
             ]);
 
@@ -59,30 +64,32 @@ class OrderService {
                 const dishQuery = `
                     INSERT INTO orderdishes (
                         order_id,
-                        item_id,
+                        dish_id,
+                        dish_type,
                         quantity,
                         price,
                         created_at
-                    ) VALUES (?, ?, ?, ?, NOW())
+                    ) VALUES (?, ?, ?, ?, ?, NOW())
                 `;
 
                 await connection.execute(dishQuery, [
                     orderId,
-                    item.itemId,
-                    item.quantity,
-                    item.price,
+                    item.itemId || null,
+                    item.dishType || null,
+                    item.quantity || 0,
+                    item.price || 0,
                 ]);
             }
 
             await Database.commitTransaction(connection);
 
-            logger.info('Order created', { orderId, userId, totalAmount: total_amount });
+            logger.info('Order created', { orderId, userId, totalAmount });
 
             return {
                 orderId,
                 userId,
-                restaurantId: restaurant_id,
-                totalAmount: total_amount,
+                restaurantId: restaurantId,
+                totalAmount: totalAmount,
                 status: 'pending',
                 items,
             };
@@ -105,7 +112,6 @@ class OrderService {
             const query = `
                 SELECT * FROM orders
                 WHERE user_id = ?
-                ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
             `;
 

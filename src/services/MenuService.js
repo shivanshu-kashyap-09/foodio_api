@@ -59,7 +59,7 @@ class MenuService {
             }
 
             const tableName = `${type.toLowerCase()}menu`;
-            const query = `SELECT * FROM ${tableName} WHERE restaurant_id = ?`;
+            const query = `SELECT * FROM ${tableName} WHERE dish_id = ?`;
 
             const result = await Database.queryOne(query, [id]);
 

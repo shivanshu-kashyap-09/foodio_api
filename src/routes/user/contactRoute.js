@@ -28,7 +28,7 @@ const logger = new Logger('ContactRoute');
  * @access Public
  */
 router.post('/submit', asyncHandler(async (req, res) => {
-    const { name, email, phone, subject, message } = req.body;
+    const { name, email, phone, subject = "user query", message } = req.body;
 
     // Validate inputs
     const errors = [];

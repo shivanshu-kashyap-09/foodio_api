@@ -34,8 +34,7 @@ const logger = new Logger('OrderRoute');
  */
 router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const { restaurantId, restaurantType, items, totalAmount, deliveryAddress, phone, paymentMethod } = req.body;
-
+    const { restaurantId, restaurantType, items, totalAmount, deliveryAddress, phone, paymentMethod, specialInstructions } = req.body;
     // Authorization check
     if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
         logger.warn('Unauthorized order creation attempt', { userId, requestUserId: req.user.id });
@@ -47,7 +46,7 @@ router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) 
     if (!Validator.isPositiveNumber(parseInt(userId))) {
         errors.push('User ID must be a positive number');
     }
-    if (!Validator.isPositiveNumber(restaurantId)) {
+    if (!Validator.isPositiveNumber(restaurantId) && restaurantId !== 0) {
         errors.push('Restaurant ID must be a positive number');
     }
     if (!restaurantType || !['veg', 'nonveg', 'southindian'].includes(restaurantType.toLowerCase())) {
@@ -81,6 +80,7 @@ router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) 
             totalAmount: parseFloat(totalAmount),
             deliveryAddress: Validator.sanitizeString(deliveryAddress),
             phone,
+            specialInstructions: Validator.sanitizeString(specialInstructions || ""),
             paymentMethod: paymentMethod.toLowerCase()
         };
 

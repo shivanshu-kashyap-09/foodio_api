@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit'); // Rate limiting middleware
 const trimRequest = require('trim-request'); // Middleware to trim request data 
 const http = require('http');
 const socketIO = require('socket.io');
+require("./src/cron/orderCron");
 
 const config = require('./src/config/config');
 const Logger = require('./src/utils/Logger');

@@ -13,7 +13,7 @@ const queryAsync = promisify(DB.query).bind(DB);
  */
 async function getAllUser() {
     try {
-        const query = 'SELECT id, user_name, user_gmail, user_phone, user_address, role, created_at FROM user';
+        const query = 'SELECT user_id, user_name, user_gmail, user_phone, user_address, role, created_at FROM user';
         const results = await queryAsync(query);
         return results;
     } catch (error) {
@@ -24,23 +24,28 @@ async function getAllUser() {
 
 /**
  * Fetch user by ID
- * @param {number} id - User ID
+ * @param {number|string} id - User ID
  * @returns {Promise<Object|null>} User object or null if not found
  */
 async function getUserById(id) {
     try {
-        if (!id || typeof id !== 'number') {
+        if (!id) {
             throw new Error('Invalid user ID');
         }
 
-        // Check cache first
-        const cachedUser = await Redis.get(`user:${id}`);
-        if (cachedUser) {
-            return JSON.parse(cachedUser);
+        const userId = parseInt(id, 10);
+        if (isNaN(userId)) {
+            throw new Error('Invalid user ID format');
         }
 
-        const query = 'SELECT id, user_name, user_gmail, user_phone, user_address, user_img, role FROM user WHERE id = ?';
-        const results = await queryAsync(query, [id]);
+        // Check cache first
+        // const cachedUser = await Redis.get(`user:${userId}`);
+        // if (cachedUser) {
+        //     return JSON.parse(cachedUser);
+        // }
+
+        const query = 'SELECT user_id, user_name, user_gmail, user_phone, user_address, user_img, role FROM user WHERE user_id = ?';
+        const results = await queryAsync(query, [userId]);
 
         if (!results || results.length === 0) {
             return null;
@@ -48,7 +53,7 @@ async function getUserById(id) {
 
         const user = results[0];
         // Cache for 1 hour
-        await Redis.set(`user:${id}`, JSON.stringify(user), 'EX', 3600);
+        // await Redis.set(`user:${userId}`, JSON.stringify(user), 'EX', 3600);
         return user;
     } catch (error) {
         console.error('[AuthService.getUserById] Error fetching user by ID:', error);
@@ -114,7 +119,7 @@ async function createUser(userData) {
         ]);
 
         return {
-            id: result.insertId,
+            user_id: result.insertId,
             user_name,
             user_gmail,
             user_phone,
@@ -173,16 +178,13 @@ async function loginUser(user, password) {
 
         // Generate JWT token
         const token = jwt.sign(
-            { id: userData.id, role: userData.role },
+            { id: userData.user_id, role: userData.role },
             process.env.JWT_SECRET || 'default_secret',
             { expiresIn: '24h' }
         );
 
-        // Store token in Redis
-        // await Redis.set(`user:${userData.id}:token`, token, 86400);
-
-        // // Clear user cache
-        // await Redis.del(`user:${userData.id}`);
+//         await Redis.set(`user:${userData.user_id}:token`, token, 86400);
+// await Redis.del(`user:${userData.user_id}`);
 
         return {
             id: userData.user_id,
@@ -263,7 +265,7 @@ async function updateUserProfile(id, userData) {
         }
 
         updateValues.push(id);
-        const query = `UPDATE user SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`;
+        const query = `UPDATE user SET ${updateFields.join(', ')}, updated_at = NOW() WHERE user_id = ?`;
         const result = await queryAsync(query, updateValues);
 
         if (result.affectedRows === 0) {
@@ -310,7 +312,7 @@ async function resetPassword(email, newPassword) {
         }
 
         // Clear cache
-        await Redis.del(`user:${user.id}`);
+        await Redis.del(`user:${user.user_id}`);
 
         return true;
     } catch (error) {
@@ -357,7 +359,7 @@ async function deleteUser(id) {
             throw new Error('User ID is required');
         }
 
-        const query = 'DELETE FROM user WHERE id = ?';
+        const query = 'DELETE FROM user WHERE user_id = ?';
         const result = await queryAsync(query, [id]);
 
         if (result.affectedRows === 0) {

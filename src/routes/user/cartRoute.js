@@ -82,8 +82,8 @@ router.post('/:userId/cart/add', authenticateToken, asyncHandler(async (req, res
     if (!Validator.isPositiveNumber(quantity) || quantity < 1) {
         errors.push('Quantity must be at least 1');
     }
-    if (!menuType || !['veg', 'nonveg', 'southindian'].includes(menuType.toLowerCase())) {
-        errors.push('Menu type must be one of: veg, nonveg, southindian');
+    if (!menuType || !['veg', 'nonveg', 'southindian', 'thali'].includes(menuType.toLowerCase())) {
+        errors.push('Menu type must be one of: veg, nonveg, southindian', 'thali');
     }
 
     if (errors.length > 0) {
@@ -94,8 +94,8 @@ router.post('/:userId/cart/add', authenticateToken, asyncHandler(async (req, res
         const result = await CartService.addToCart(
             parseInt(userId),
             parseInt(itemId),
-            parseInt(quantity),
-            menuType.toLowerCase()
+            menuType.toLowerCase(),
+            parseInt(quantity)
         );
         logger.info('Item added to cart', { userId, itemId, quantity });
 

@@ -10,6 +10,7 @@ const { upload: uploadMiddleware } = require('../../middleware/UploadFiles');
 const authService = require('../../services/AuthService');
 const mailerService = require('../../services/MailerService');
 const Redis = require('../../utils/Redis');
+const Logger = require('../../utils/Logger');
 
 // Input validation utilities
 const validators = {
@@ -74,6 +75,7 @@ route.get('/get/all', authMiddleware, async (req, res) => {
  */
 route.get('/profile', authMiddleware, async (req, res) => {
   try {
+    console.log('User profile fetched successfully', { user: req.user });
     const user = await authService.getUserById(req.user.id);
 
     if (!user) {

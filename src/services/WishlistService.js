@@ -64,8 +64,8 @@ class WishlistService {
         try {
             // Check if already in wishlist
             const existingQuery = `
-                SELECT id FROM wishlist
-                WHERE user_id = ? AND item_id = ? AND menu_type = ?
+                SELECT wish_id FROM wishlist
+                WHERE user_id = ? AND dish_id = ? AND dish_type = ?
             `;
 
             const existing = await Database.queryOne(existingQuery, [userId, itemId, menuType]);
@@ -78,7 +78,7 @@ class WishlistService {
             }
 
             const insertQuery = `
-                INSERT INTO wishlist (user_id, item_id, menu_type, created_at)
+                INSERT INTO wishlist (user_id, dish_id, dish_type, created_at)
                 VALUES (?, ?, ?, NOW())
             `;
 

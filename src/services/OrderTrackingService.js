@@ -26,20 +26,7 @@ class OrderTrackingService {
             }
 
             const query = `
-                SELECT
-                    o.id, o.user_id, o.restaurant_id, o.status,
-                    o.created_at, o.updated_at,
-                    o.estimated_delivery_time, o.actual_delivery_time,
-                    o.delivery_partner_id, o.delivery_partner_name, o.delivery_partner_phone,
-                    o.latitude, o.longitude, o.delivery_distance_km,
-                    r.restaurant_name, r.restaurant_phone, r.restaurant_address,
-                    COUNT(DISTINCT od.id) as item_count,
-                    SUM(od.quantity) as total_items
-                FROM orders o
-                LEFT JOIN vegrestaurant r ON o.restaurant_id = r.id
-                LEFT JOIN orderdishes od ON o.id = od.order_id
-                WHERE o.id = ? AND o.user_id = ?
-                GROUP BY o.id
+                select * from orders where order_id = ? and user_id = ?;
             `;
 
             const order = await Database.queryOne(query, [orderId, userId]);
@@ -124,7 +111,7 @@ class OrderTrackingService {
             };
 
             // Cache for 5 minutes
-            await Cache.setEx(cacheKey, 300, JSON.stringify(trackingData));
+            // await Cache.setEx(cacheKey, 300, JSON.stringify(trackingData));
 
             return trackingData;
         } catch (error) {
@@ -152,7 +139,7 @@ class OrderTrackingService {
             } = options;
 
             // Get current order status
-            const currentOrderQuery = `SELECT status, user_id FROM orders WHERE id = ?`;
+            const currentOrderQuery = `SELECT status, user_id FROM orders WHERE order_id = ?`;
             const currentOrder = await connection.execute(currentOrderQuery, [orderId]);
 
             if (currentOrder[0].length === 0) {
@@ -169,7 +156,7 @@ class OrderTrackingService {
             const updateQuery = `
                 UPDATE orders
                 SET status = ?, updated_at = NOW()
-                WHERE id = ?
+                WHERE order_id = ?
             `;
             await connection.execute(updateQuery, [newStatus, orderId]);
 
@@ -215,7 +202,7 @@ class OrderTrackingService {
             await Database.commitTransaction(connection);
 
             // Invalidate cache
-            await Cache.del(`order_tracking:${orderId}`);
+            // await Cache.del(`order_tracking:${orderId}`);
 
             logger.info('Order status updated with tracking', {
                 orderId,
@@ -276,13 +263,13 @@ class OrderTrackingService {
             const updateOrderQuery = `
                 UPDATE orders
                 SET latitude = ?, longitude = ?
-                WHERE id = ? AND delivery_partner_id = ?
+                WHERE order_id = ? AND delivery_partner_id = ?
             `;
 
             await Database.query(updateOrderQuery, [latitude, longitude, orderId, deliveryPartnerId]);
 
             // Invalidate cache
-            await Cache.del(`order_tracking:${orderId}`);
+            // await Cache.del(`order_tracking:${orderId}`);
 
             logger.info('Delivery location updated', { orderId, deliveryPartnerId });
 
