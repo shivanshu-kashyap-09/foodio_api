@@ -1,0 +1,13 @@
+const dotenv = require('dotenv');
+dotenv.config();
+console.log('HOST=', process.env.DB_HOST);
+console.log('PORT=', process.env.DB_PORT);
+console.log('USER=', process.env.DB_USER);
+console.log('PASS=', process.env.DB_PASSWORD ? 'SET' : '');
+console.log('NAME=', process.env.DB_NAME);
+const config = require('./src/config/config');
+console.log('CONFIG HOST=', config.database.host);
+console.log('CONFIG PORT=', config.database.port);
+console.log('CONFIG USER=', config.database.user);
+console.log('CONFIG PASS=', config.database.password ? 'SET' : '');
+console.log('CONFIG NAME=', config.database.database);
