@@ -236,7 +236,7 @@ route.post('/login', loginLimiter, async (req, res) => {
  */
 route.post('/signup', async (req, res) => {
   try {
-    const { userName, userEmail, userPhone, userPassword, userConfirmPassword, userRole = 'user' } = req.body;
+    const { userName, userEmail, userPhone, userPassword, userConfirmPassword, userRole, restaurantType, address, vehicle_type, vehicle_number } = req.body;
 
     // Validate inputs
     const validationErrors = [];
@@ -271,7 +271,11 @@ route.post('/signup', async (req, res) => {
       user_gmail: userEmail.toLowerCase().trim(),
       user_phone: userPhone.trim(),
       user_password: userPassword,
-      user_role: userRole === 'admin' ? 'user' : userRole // Prevent admin privilege escalation
+      user_role: userRole,
+      restaurantType,
+      address,
+      vehicle_type,
+      vehicle_number
     });
 
     // Send verification email

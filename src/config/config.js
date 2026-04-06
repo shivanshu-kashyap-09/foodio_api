@@ -103,17 +103,17 @@ const config = {
     rateLimit: {
         login: {
             windowMs: 15 * 60 * 1000, // 15 minutes
-            maxRequests: 5,
+            maxRequests: 10,
             message: 'Too many login attempts. Please try again later.',
         },
         otp: {
             windowMs: 60 * 1000, // 1 minute
-            maxRequests: 3,
+            maxRequests: 5,
             message: 'Too many OTP requests. Please try again later.',
         },
         general: {
             windowMs: 60 * 1000, // 1 minute
-            maxRequests: 30,
+            maxRequests: 3000,
             message: 'Too many requests. Please try again later.',
         },
     },

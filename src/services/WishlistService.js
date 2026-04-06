@@ -13,49 +13,40 @@ class WishlistService {
      * Get user wishlist
      */
     static async getWishlist(userId, page = 1, limit = 10) {
-        try {
-            const offset = (page - 1) * limit;
+    try {
+        const offset = (page - 1) * limit;
 
-            const query = `
-                SELECT w.*, m.item_name, m.item_price, m.item_description
-                FROM wishlist w
-                JOIN vegmenu m ON w.item_id = m.id AND w.menu_type = 'veg'
-                WHERE w.user_id = ?
-                UNION ALL
-                SELECT w.*, m.item_name, m.item_price, m.item_description
-                FROM wishlist w
-                JOIN nonvegmenu m ON w.item_id = m.id AND w.menu_type = 'nonveg'
-                WHERE w.user_id = ?
-                UNION ALL
-                SELECT w.*, m.item_name, m.item_price, m.item_description
-                FROM wishlist w
-                JOIN southindianmenu m ON w.item_id = m.id AND w.menu_type = 'southindian'
-                WHERE w.user_id = ?
-                ORDER BY created_at DESC
-                LIMIT ? OFFSET ?
-            `;
+        const query = `
+            SELECT * FROM wishlist 
+            WHERE user_id = ? 
+            LIMIT ? OFFSET ?
+        `;
 
-            const countQuery = `SELECT COUNT(*) as total FROM wishlist WHERE user_id = ?`;
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM wishlist 
+            WHERE user_id = ?
+        `;
 
-            const [items, countResult] = await Promise.all([
-                Database.query(query, [userId, userId, userId, parseInt(limit), offset]),
-                Database.query(countQuery, [userId]),
-            ]);
+        const [items, countResult] = await Promise.all([
+            Database.query(query, [userId, parseInt(limit), offset]),
+            Database.query(countQuery, [userId]),
+        ]);
 
-            const total = countResult[0]?.total || 0;
+        const total = countResult[0]?.total || 0;
 
-            return {
-                items,
-                total,
-                page,
-                limit,
-                pages: Math.ceil(total / limit),
-            };
-        } catch (error) {
-            logger.error('getWishlist error', { userId, error: error.message });
-            throw error;
-        }
+        return {
+            items,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+        };
+    } catch (error) {
+        logger.error('getWishlist error', { userId, error: error.message });
+        throw error;
     }
+}
 
     /**
      * Add item to wishlist

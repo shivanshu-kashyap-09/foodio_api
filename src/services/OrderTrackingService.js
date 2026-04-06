@@ -71,9 +71,10 @@ class OrderTrackingService {
 
             const trackingData = {
                 order: {
-                    id: order.id,
+                    id: order.order_id,
                     status: order.status,
                     totalAmount: order.total_amount,
+                    deliveryAddress: order.delivery_address,
                     itemCount: order.item_count,
                     totalItems: order.total_items,
                     createdAt: order.created_at,

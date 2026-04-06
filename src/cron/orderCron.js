@@ -19,7 +19,7 @@ cron.schedule("* * * * *", async () => {
       let nextStatus = null;
 
       const created = new Date(order.created_at);
-      const diff = (now - created) / 60000; // minutes
+      const diff = (now - created) / 5000; // minutes
 
       // 🔥 realistic flow
       if (diff > 1 && order.status === "pending") nextStatus = "confirmed";

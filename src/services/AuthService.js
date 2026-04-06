@@ -89,7 +89,7 @@ async function getUserByEmail(email) {
  */
 async function createUser(userData) {
     try {
-        const { user_name, user_gmail, user_phone, user_password, user_role } = userData;
+        const { user_name, user_gmail, user_phone, user_password, user_role, restaurantType, address, vehicle_type, vehicle_number } = userData;
 
         if (!user_name || !user_gmail || !user_phone || !user_password || !user_role) {
             throw new Error('Missing required fields');
@@ -106,20 +106,51 @@ async function createUser(userData) {
         // Hash password
         const hashedPassword = await bcrypt.hash(user_password, 10);
 
-        const query = `
-            INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify, role, created_at)
-            VALUES (?, ?, ?, ?, 0, ?, NOW())
+        // 1. Insert into base user table
+        const userQuery = `
+            INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_verify, role, user_address, created_at)
+            VALUES (?, ?, ?, ?, 0, ?, ?, NOW())
         `;
-        const result = await queryAsync(query, [
+        const userResult = await queryAsync(userQuery, [
             user_name,
             user_gmail.toLowerCase(),
             user_phone,
             hashedPassword,
-            user_role
+            user_role,
+            address || ''
         ]);
 
+        const newUserId = userResult.insertId;
+
+        // 2. SaaS Logic: Insert into specialized tables based on role
+        if (user_role === 'restaurant') {
+            let restaurantTable = '';
+            // Determine table based on restaurant type
+            if (restaurantType === 'veg') restaurantTable = 'vegrestaurant';
+            else if (restaurantType === 'nonveg') restaurantTable = 'nonvegrestaurant';
+            else if (restaurantType === 'southindian') restaurantTable = 'southindianrestaurant';
+            
+            if (restaurantTable) {
+                const resQuery = `
+                    INSERT INTO ${restaurantTable} (
+                        res_name, res_phone, res_address, res_img, res_rating
+                    ) VALUES (?, ?, ?, ?, ?)
+                `;
+                // Using default image placeholders for new signups
+                const defaultImg = "https://img.freepik.com/premium-psd/3d-male-character-free-psd_837431-38.jpg";
+                await queryAsync(resQuery, [user_name, user_phone, address || '', defaultImg, 3]);
+            }
+        } else if (user_role === 'delivery') {
+            const deliveryQuery = `
+                INSERT INTO delivery_partners (
+                    name, phone, vehicle_type, vehicle_number, user_id, status
+                ) VALUES (?, ?, ?, ?, ?, 'offline')
+            `;
+            await queryAsync(deliveryQuery, [user_name, user_phone, vehicle_type || '', vehicle_number || '', newUserId]);
+        }
+
         return {
-            user_id: result.insertId,
+            user_id: newUserId,
             user_name,
             user_gmail,
             user_phone,

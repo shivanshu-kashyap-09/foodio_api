@@ -149,7 +149,7 @@ class OrderService {
                        r.restaurant_address
                 FROM orders o
                 LEFT JOIN vegrestaurant r ON o.restaurant_id = r.id
-                WHERE o.id = ?
+                WHERE o.order_id = ?
             `;
 
             const dishesQuery = `
@@ -190,7 +190,7 @@ class OrderService {
             const query = `
                 UPDATE orders
                 SET status = ?, updated_at = NOW()
-                WHERE id = ?
+                WHERE order_id = ?
             `;
 
             const result = await Database.query(query, [status, orderId]);
@@ -213,7 +213,7 @@ class OrderService {
      */
     static async cancelOrder(orderId) {
         try {
-            const orderQuery = `SELECT status FROM orders WHERE id = ?`;
+            const orderQuery = `SELECT status FROM orders WHERE order_id = ?`;
             const order = await Database.queryOne(orderQuery, [orderId]);
 
             if (!order) {

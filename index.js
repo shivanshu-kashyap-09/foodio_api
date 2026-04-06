@@ -144,6 +144,13 @@ app.use('/api/menus/southindian', require('./src/routes/menu/southIndianMenu'));
 app.use('/api/thali', require('./src/routes/thali/thali'));
 app.use('/api/thali/dishes', require('./src/routes/thali/thaliDish'));
 
+// --- EXTENSION: SaaS & AI MODULES ---
+app.use('/api/admin', require('./src/routes/admin/adminRoute'));
+app.use('/api/restaurant/dashboard', require('./src/routes/restaurant/dashboardRoute'));
+app.use('/api/delivery', require('./src/routes/delivery/deliveryRoute'));
+app.use('/api/ai', require('./src/routes/ai/aiRoute'));
+
+
 app.use(notFoundHandler);
 
 app.use(errorHandler);
