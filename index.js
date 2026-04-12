@@ -126,6 +126,7 @@ app.use('/api/contact', require('./src/routes/user/contactRoute'));
 
 // Advanced order tracking and analytics routes
 app.use('/api/orders', require('./src/routes/tracking/orderTrackingRoute'));
+app.use('/api/razorpay', require('./src/routes/user/razorpay'));
 
 // AI-powered food recommendation chatbot routes
 app.use('/api/chatbot', require('./src/routes/chatbot/chatbotRoute'));
@@ -148,6 +149,7 @@ app.use('/api/thali/dishes', require('./src/routes/thali/thaliDish'));
 app.use('/api/admin', require('./src/routes/admin/adminRoute'));
 app.use('/api/restaurant/dashboard', require('./src/routes/restaurant/dashboardRoute'));
 app.use('/api/delivery', require('./src/routes/delivery/deliveryRoute'));
+app.use('/api/delivery/borzo', require('./src/routes/delivery/borzoRoute'));
 app.use('/api/ai', require('./src/routes/ai/aiRoute'));
 
 

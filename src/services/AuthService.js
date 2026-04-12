@@ -2,6 +2,8 @@ const DB = require('../utils/DB');
 const Redis = require('../utils/Redis');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const config = require('../config/config');
+const crypto = require('crypto');
 const { promisify } = require('util');
 
 // Convert callback-based DB query to Promise
@@ -129,7 +131,7 @@ async function createUser(userData) {
             if (restaurantType === 'veg') restaurantTable = 'vegrestaurant';
             else if (restaurantType === 'nonveg') restaurantTable = 'nonvegrestaurant';
             else if (restaurantType === 'southindian') restaurantTable = 'southindianrestaurant';
-            
+
             if (restaurantTable) {
                 const resQuery = `
                     INSERT INTO ${restaurantTable} (
@@ -210,12 +212,12 @@ async function loginUser(user, password) {
         // Generate JWT token
         const token = jwt.sign(
             { id: userData.user_id, role: userData.role },
-            process.env.JWT_SECRET || 'default_secret',
-            { expiresIn: '24h' }
+            config.jwt.secret,
+            { expiresIn: config.jwt.expiresIn }
         );
 
-//         await Redis.set(`user:${userData.user_id}:token`, token, 86400);
-// await Redis.del(`user:${userData.user_id}`);
+        //         await Redis.set(`user:${userData.user_id}:token`, token, 86400);
+        // await Redis.del(`user:${userData.user_id}`);
 
         return {
             id: userData.user_id,
@@ -265,7 +267,7 @@ async function updateUserProfile(id, userData) {
         }
 
         const { user_name, user_phone, user_gmail, user_address, user_img } = userData;
-        
+
         // Only update fields that are provided
         const updateFields = [];
         const updateValues = [];
@@ -296,7 +298,7 @@ async function updateUserProfile(id, userData) {
         }
 
         updateValues.push(id);
-        const query = `UPDATE user SET ${updateFields.join(', ')}, updated_at = NOW() WHERE user_id = ?`;
+        const query = `UPDATE user SET ${updateFields.join(', ')} WHERE user_id = ?`;
         const result = await queryAsync(query, updateValues);
 
         if (result.affectedRows === 0) {
@@ -304,7 +306,7 @@ async function updateUserProfile(id, userData) {
         }
 
         // Clear cache
-        await Redis.del(`user:${id}`);
+        // await Redis.del(`user:${id}`);
 
         return await getUserById(id);
     } catch (error) {
@@ -418,5 +420,100 @@ module.exports = {
     updateUserProfile,
     resetPassword,
     verifyEmail,
-    deleteUser
+    deleteUser,
+    getGoogleAuthUrl,
+    handleGoogleCallback
 };
+
+/**
+ * Generate Google OAuth URL
+ */
+function getGoogleAuthUrl() {
+    const { oauth } = config;
+    const scope = [
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email'
+    ].join(' ');
+
+    return `${oauth.google.oauthUrl}?response_type=code&client_id=${oauth.google.clientId}&redirect_uri=${oauth.google.redirectUrl}&scope=${scope}&access_type=offline&prompt=consent`;
+}
+
+/**
+ * Handle Google OAuth Callback
+ * @param {string} code - Authorization code
+ */
+async function handleGoogleCallback(code) {
+    const { oauth } = config;
+
+    // 1. Exchange code for tokens
+    const tokenResponse = await fetch(oauth.google.accessTokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            code,
+            client_id: oauth.google.clientId,
+            client_secret: oauth.google.clientSecret,
+            redirect_uri: oauth.google.redirectUrl,
+            grant_type: 'authorization_code'
+        })
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+        throw new Error('Failed to obtain access token');
+    }
+
+    // 2. Get user info from Google
+    const userInfoResponse = await fetch(oauth.google.userInfoUrl, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+
+    const userInfo = await userInfoResponse.json();
+    if (!userInfo.email) {
+        throw new Error('Google authentication failed: Email not found');
+    }
+
+    const email = userInfo.email.toLowerCase();
+    const name = userInfo.name || userInfo.given_name || "Google User";
+    const picture = userInfo.picture || null;
+
+    // 3. Check if user exists
+    let user = await getUserByEmail(email);
+
+    if (!user) {
+        // Create new user for Google login
+        const randomPassword = crypto.randomBytes(16).toString("hex");
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        const phone = '0000000000'; // Default phone for social login
+
+        const insertQuery = `
+            INSERT INTO user (user_name, user_gmail, user_phone, user_password, user_img, user_verify, role, created_at)
+            VALUES (?, ?, ?, ?, ?, 1, 'user', NOW())
+        `;
+        const insertResult = await queryAsync(insertQuery, [name, email, phone, hashedPassword, picture]);
+
+        user = {
+            user_id: insertResult.insertId,
+            user_name: name,
+            user_gmail: email,
+            role: 'user'
+        };
+    }
+
+    // 4. Generate JWT
+    const token = jwt.sign(
+        { id: user.user_id, role: user.role || 'user' },
+        config.jwt.secret,
+        { expiresIn: config.jwt.expiresIn }
+    );
+
+    return {
+        token,
+        user: {
+            id: user.user_id,
+            user_name: user.user_name,
+            user_gmail: user.user_gmail
+        },
+        redirectUrl: `${oauth.google.frontendSuccessUrl}/#/oauth2-success?token=${token}&user_id=${user.user_id}`
+    };
+}

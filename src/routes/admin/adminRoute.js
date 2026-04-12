@@ -29,6 +29,27 @@ route.get('/stats', authMiddleware, adminOnly, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/revenue
+ * Get revenue analytics for chart
+ */
+route.get('/revenue', authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const revenue = await adminService.getRevenueAnalytics();
+        return res.status(200).json({
+            success: true,
+            data: revenue,
+            message: 'Revenue fetched successfully'
+        });
+    } catch (error) {
+        logger.error('Failed to fetch revenue stats', { error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch revenue analytics'
+        });
+    }
+});
+
+/**
  * GET /api/admin/pending-restaurants
  * Get restaurants pending for approval
  */

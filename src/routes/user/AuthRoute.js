@@ -109,7 +109,7 @@ route.put('/update/profile', authMiddleware, uploadMiddleware.single('user_img')
 
     // Validate inputs
     const validationErrors = [];
-    if (user_email && !validators.email(user_gmail)) {
+    if (user_gmail && !validators.email(user_gmail)) {
       validationErrors.push('Invalid email format');
     }
     if (user_phone && !validators.phone(user_phone)) {
@@ -641,5 +641,40 @@ route.post('/delete-account', authMiddleware, async (req, res) => {
     });
   }
 });
+/**
+ * GET /user/googleoauth2
+ * Google OAuth2 authentication redirect
+ */
+route.get('/googleoauth2', (req, res) => {
+    try {
+        const url = authService.getGoogleAuthUrl();
+        res.redirect(url);
+    } catch (error) {
+        console.error('[AuthRoute.googleoauth2] Error:', error);
+        return res.status(500).json({ success: false, message: 'OAuth initialization failed' });
+    }
+});
+
+/**
+ * GET /user/google/callback
+ * Google OAuth2 callback handler
+ */
+route.get('/google/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+        if (!code) {
+            return res.status(400).json({ success: false, message: 'Authorization code not provided' });
+        }
+
+        const result = await authService.handleGoogleCallback(code);
+        
+        // Redirect to frontend with token and user info
+        res.redirect(result.redirectUrl);
+    } catch (error) {
+        console.error('[AuthRoute.google.callback] Error:', error);
+        return res.status(500).json({ success: false, message: 'Social login failed' });
+    }
+});
+
 
 module.exports = route;
