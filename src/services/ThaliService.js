@@ -16,6 +16,10 @@ class ThaliService {
      */
     static async getAllThalis(page = 1, limit = 10) {
         try {
+            const cacheKey = `thalis:list:${page}:${limit}`;
+            const cached = await Cache.get(cacheKey);
+            if (cached) return JSON.parse(cached);
+
             const offset = (page - 1) * limit;
 
             const query = `
@@ -30,15 +34,20 @@ class ThaliService {
                 Database.query(countQuery),
             ]);
 
-            const total = countResult[0]?.total || 0;
+            const total = countResult[0]?.total || thalis.length || 0;
 
-            return {
+            const response = {
                 thalis,
                 total,
                 page,
                 limit,
                 pages: Math.ceil(total / limit),
             };
+
+            // Cache for 10 minutes
+            await Cache.set(cacheKey, response, 600);
+
+            return response;
         } catch (error) {
             logger.error('getAllThalis error', { error: error.message });
             throw error;
@@ -60,7 +69,7 @@ class ThaliService {
             const result = await Database.queryOne(query, [id]);
 
             if (result) {
-                await Cache.set(cacheKey, JSON.stringify(result), config.cache.restaurantList);
+                await Cache.set(cacheKey, result, 1800);
             }
 
             return result;

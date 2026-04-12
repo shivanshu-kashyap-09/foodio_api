@@ -16,6 +16,12 @@ class RestaurantService {
      */
     static async getAllRestaurants(type, page = 1, limit = 10) {
         try {
+            const cacheKey = `restaurants:${type}:${page}:${limit}`;
+            const cached = await Cache.get(cacheKey);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+
             const offset = (page - 1) * limit;
             const tableName = `${type.toLowerCase()}restaurant`;
 
@@ -26,20 +32,25 @@ class RestaurantService {
 
             const countQuery = `SELECT COUNT(*) as total FROM ${tableName}`;
 
-            const [restaurants] = await Promise.all([
+            const [restaurants, countResult] = await Promise.all([
                 Database.query(query, [parseInt(limit), offset]),
                 Database.query(countQuery),
             ]);
 
-            const total = restaurants.length > 0 ? restaurants[0].total : 0;
+            const total = countResult[0]?.total || restaurants.length || 0;
 
-            return {
+            const response = {
                 restaurants,
                 total,
                 page,
                 limit,
                 pages: Math.ceil(total / limit),
             };
+
+            // Cache for 10 minutes
+            await Cache.set(cacheKey, response, 600);
+
+            return response;
         } catch (error) {
             logger.error('getAllRestaurants error', { type, error: error.message });
             throw error;
@@ -65,7 +76,7 @@ class RestaurantService {
 
             if (result) {
                 // Cache for 30 minutes
-                await Cache.set(cacheKey, JSON.stringify(result), config.cache.restaurantList);
+                await Cache.set(cacheKey, result, 1800);
             }
 
             return result;

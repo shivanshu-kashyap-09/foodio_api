@@ -9,7 +9,7 @@ const { authenticateToken: authMiddleware } = require('../../middleware/Auth');
 const { upload: uploadMiddleware } = require('../../middleware/UploadFiles');
 const authService = require('../../services/AuthService');
 const mailerService = require('../../services/MailerService');
-const Redis = require('../../utils/Redis');
+const Cache = require('../../utils/Cache');
 const Logger = require('../../utils/Logger');
 
 // Input validation utilities
@@ -319,7 +319,7 @@ route.post('/signup', async (req, res) => {
 route.post('/logout', authMiddleware, async (req, res) => {
   try {
     await authService.logoutUser(req.user.id);
-    await Redis.del(`user:${req.user.id}`);
+    await Cache.del(`user:${req.user.id}`);
 
     return res.status(200).json({
       success: true,
@@ -350,7 +350,7 @@ route.get('/verify-email/:token', async (req, res) => {
     }
 
     // Get email from Redis cache
-    const emailFromToken = await Redis.get(`verify_token:${token}`);
+    const emailFromToken = await Cache.get(`verify_token:${token}`);
 
     if (!emailFromToken) {
       return res.status(400).json({
@@ -363,7 +363,7 @@ route.get('/verify-email/:token', async (req, res) => {
     await authService.verifyEmail(emailFromToken);
 
     // Delete token
-    await Redis.del(`verify_token:${token}`);
+    await Cache.del(`verify_token:${token}`);
 
     return res.status(200).json({
       success: true,
@@ -416,8 +416,8 @@ route.post('/forgot-password', otpLimiter, async (req, res) => {
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP in Redis with 10-minute expiry
-    await Redis.setex(`otp:${normalizedEmail}`, 600, otp);
+    // Store OTP in Cache with 10-minute expiry
+    await Cache.set(`otp:${normalizedEmail}`, otp, 600);
 
     // Send OTP email
     try {
@@ -466,7 +466,7 @@ route.post('/verify-otp', async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const storedOtp = await Redis.get(`otp:${normalizedEmail}`);
+    const storedOtp = await Cache.get(`otp:${normalizedEmail}`);
 
     if (!storedOtp) {
       return res.status(400).json({
@@ -490,10 +490,10 @@ route.post('/verify-otp', async (req, res) => {
     );
 
     // Store reset token in Redis
-    await Redis.setex(`reset_token:${normalizedEmail}`, 900, resetToken);
+    await Cache.set(`reset_token:${normalizedEmail}`, resetToken, 900);
 
     // Delete OTP
-    await Redis.del(`otp:${normalizedEmail}`);
+    await Cache.del(`otp:${normalizedEmail}`);
 
     return res.status(200).json({
       success: true,
@@ -548,7 +548,7 @@ route.post('/reset-password', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Verify reset token
-    const storedToken = await Redis.get(`reset_token:${normalizedEmail}`);
+    const storedToken = await Cache.get(`reset_token:${normalizedEmail}`);
     if (!storedToken || storedToken !== resetToken) {
       return res.status(400).json({
         success: false,
@@ -570,7 +570,7 @@ route.post('/reset-password', async (req, res) => {
     await authService.resetPassword(normalizedEmail, newPassword);
 
     // Delete reset token
-    await Redis.del(`reset_token:${normalizedEmail}`);
+    await Cache.del(`reset_token:${normalizedEmail}`);
 
     return res.status(200).json({
       success: true,
