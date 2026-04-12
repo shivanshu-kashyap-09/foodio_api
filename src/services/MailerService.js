@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const Redis = require('../utils/Redis');
+const Cache = require('../utils/Cache');
 
 // Email transporter configuration
 let transporter = null;
@@ -57,7 +57,7 @@ async function sendVerificationEmail(email, userId) {
         const verificationToken = crypto.randomBytes(32).toString('hex');
 
         // Store token in Redis with 24-hour expiry
-        await Redis.setex(`verify_token:${verificationToken}`, 86400, email);
+        await Cache.set(`verify_token:${verificationToken}`, email, 86400);
 
         const mailTransporter = getTransporter();
         const verificationLink = `${process.env.APP_URL || 'http://localhost:3000'}/user/verify-email/${verificationToken}`;

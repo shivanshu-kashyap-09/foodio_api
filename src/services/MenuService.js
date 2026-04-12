@@ -16,6 +16,10 @@ class MenuService {
      */
     static async getMenuItems(type, page = 1, limit = 10) {
         try {
+            const cacheKey = `menu:${type}:list:${page}:${limit}`;
+            const cached = await Cache.get(cacheKey);
+            if (cached) return JSON.parse(cached);
+
             const offset = (page - 1) * limit;
             const tableName = `${type.toLowerCase()}menu`;
 
@@ -33,13 +37,18 @@ class MenuService {
 
             const total = countResult[0]?.total || 0;
 
-            return {
+            const response = {
                 items,
                 total,
                 page,
                 limit,
                 pages: Math.ceil(total / limit),
             };
+
+            // Cache for 10 minutes
+            await Cache.set(cacheKey, response, 600);
+
+            return response;
         } catch (error) {
             logger.error('getMenuItems error', { type, error: error.message });
             throw error;
@@ -64,7 +73,7 @@ class MenuService {
             const result = await Database.queryOne(query, [id]);
 
             if (result) {
-                await Cache.set(cacheKey, JSON.stringify(result), config.cache.menuItems);
+                await Cache.set(cacheKey, result, 1800);
             }
 
             return result;

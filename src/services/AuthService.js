@@ -1,5 +1,5 @@
 const DB = require('../utils/DB');
-const Redis = require('../utils/Redis');
+const Cache = require('../utils/Cache');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
@@ -41,10 +41,11 @@ async function getUserById(id) {
         }
 
         // Check cache first
-        // const cachedUser = await Redis.get(`user:${userId}`);
-        // if (cachedUser) {
-        //     return JSON.parse(cachedUser);
-        // }
+        const cacheKey = `user:${userId}`;
+        const cachedUser = await Cache.get(cacheKey);
+        if (cachedUser) {
+            return JSON.parse(cachedUser);
+        }
 
         const query = 'SELECT user_id, user_name, user_gmail, user_phone, user_address, user_img, role FROM user WHERE user_id = ?';
         const results = await queryAsync(query, [userId]);
@@ -54,8 +55,10 @@ async function getUserById(id) {
         }
 
         const user = results[0];
+        
         // Cache for 1 hour
-        // await Redis.set(`user:${userId}`, JSON.stringify(user), 'EX', 3600);
+        await Cache.set(cacheKey, user, 3600);
+        
         return user;
     } catch (error) {
         console.error('[AuthService.getUserById] Error fetching user by ID:', error);
@@ -216,8 +219,10 @@ async function loginUser(user, password) {
             { expiresIn: config.jwt.expiresIn }
         );
 
-        //         await Redis.set(`user:${userData.user_id}:token`, token, 86400);
-        // await Redis.del(`user:${userData.user_id}`);
+        // Store active token in Redis
+        await Cache.set(`user:${userData.user_id}:token`, token, 86400);
+        // Clear cached user profile to force refresh on next fetch
+        await Cache.del(`user:${userData.user_id}`);
 
         return {
             id: userData.user_id,
@@ -246,7 +251,7 @@ async function logoutUser(userId) {
             throw new Error('User ID is required');
         }
 
-        await Redis.del(`user:${userId}:token`);
+        await Cache.del(`user:${userId}:token`);
         return true;
     } catch (error) {
         console.error('[AuthService.logoutUser] Error logging out user:', error);
@@ -306,7 +311,7 @@ async function updateUserProfile(id, userData) {
         }
 
         // Clear cache
-        // await Redis.del(`user:${id}`);
+        await Cache.del(`user:${id}`);
 
         return await getUserById(id);
     } catch (error) {
@@ -345,7 +350,7 @@ async function resetPassword(email, newPassword) {
         }
 
         // Clear cache
-        await Redis.del(`user:${user.user_id}`);
+        await Cache.del(`user:${user.user_id}`);
 
         return true;
     } catch (error) {
@@ -400,8 +405,8 @@ async function deleteUser(id) {
         }
 
         // Clear cache
-        await Redis.del(`user:${id}`);
-        await Redis.del(`user:${id}:token`);
+        await Cache.del(`user:${id}`);
+        await Cache.del(`user:${id}:token`);
 
         return true;
     } catch (error) {

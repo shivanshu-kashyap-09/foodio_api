@@ -69,11 +69,6 @@ if (!config.app.isProduction) {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-const Redis = require('./src/utils/Cache');
-
-(async () => {
-    await Redis.initializeRedis();
-})();
 
 app.use('/uploads', express.static('uploads'));
 
@@ -280,6 +275,7 @@ async function startServer() {
 
         process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
         process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+        process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // Handle nodemon restarts
 
         process.on('uncaughtException', (error) => {
             logger.error('Uncaught Exception', { error: error.message, stack: error.stack });

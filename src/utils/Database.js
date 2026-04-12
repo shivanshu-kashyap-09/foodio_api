@@ -6,8 +6,12 @@ const logger = new Logger('Database');
 
 let pool = null;
 
-
 async function initializePool() {
+    // Prevent multiple initializations (Singleton pattern)
+    if (pool) {
+        return pool;
+    }
+
     try {
         pool = mysql.createPool({
             host: config.database.host,
@@ -15,13 +19,16 @@ async function initializePool() {
             password: config.database.password,
             database: config.database.database,
             port: config.database.port,
-            waitForConnections: config.database.waitForConnections,
-            connectionLimit: config.database.connectionLimit,
-            queueLimit: config.database.queueLimit,
-            enableKeepAlive: config.database.enableKeepAlive,
-            keepAliveInitialDelayMs: config.database.keepAliveInitialDelayMs,
-            connectTimeout: config.database.connectTimeout,
+            waitForConnections: true,
+            connectionLimit: 4, // Reduced to 4 to leave room for one-off connections/tools
+            queueLimit: 0,
+            enableKeepAlive: true,
+            connectTimeout: 20000,
             charset: config.database.charset,
+            // Optimized for remote/limited DBs like filess.io
+            maxIdle: 4,
+            idleTimeout: 30000, // Close idle connections after 30s
+            dateStrings: true, // Return dates as strings to avoid timezone confusion
         });
 
         // Test connection
@@ -31,9 +38,7 @@ async function initializePool() {
 
         logger.info('Database connection pool initialized successfully', {
             host: config.database.host,
-            port: config.database.port,
-            database: config.database.database,
-            poolSize: config.database.connectionLimit,
+            poolSize: 4,
         });
 
         return pool;
@@ -48,7 +53,7 @@ async function initializePool() {
 
 async function getConnection() {
     if (!pool) {
-        throw new Error('Database pool not initialized');
+        await initializePool();
     }
 
     try {
@@ -59,11 +64,29 @@ async function getConnection() {
     }
 }
 
+/**
+ * Executes a query using pool.query() directly.
+ * This automatically handles connection acquisition and release.
+ */
 async function query(sql, values = []) {
-    const connection = await getConnection();
+    if (!pool) {
+        await initializePool();
+    }
+
+    // Monitor pool status (only in development)
+    if (process.env.NODE_ENV !== 'production' && pool.pool) {
+        const poolInfo = {
+            all: pool.pool._allConnections?.length || 0,
+            free: pool.pool._freeConnections?.length || 0,
+            queued: pool.pool._connectionQueue?.length || 0
+        };
+        logger.debug('Pool status before query', poolInfo);
+    }
 
     try {
-        const [results] = await connection.execute(sql, values);
+        // pool.query automatically handles acquiring and releasing connections
+        // and is more flexible than execute() for varied parameter types
+        const [results] = await pool.query(sql, values);
         return results;
     } catch (error) {
         logger.error('Database query error', {
@@ -72,8 +95,6 @@ async function query(sql, values = []) {
             code: error.code,
         });
         throw error;
-    } finally {
-        connection.release();
     }
 }
 
@@ -97,23 +118,33 @@ async function beginTransaction() {
 
 async function commitTransaction(connection) {
     try {
-        await connection.commit();
+        if (connection) {
+            await connection.commit();
+        }
     } catch (error) {
-        await connection.rollback();
+        if (connection) {
+            await connection.rollback();
+        }
         logger.error('Failed to commit transaction', { error: error.message });
         throw error;
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 }
 
 async function rollbackTransaction(connection) {
     try {
-        await connection.rollback();
+        if (connection) {
+            await connection.rollback();
+        }
     } catch (error) {
         logger.error('Failed to rollback transaction', { error: error.message });
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 }
 
@@ -134,4 +165,4 @@ module.exports = {
     commitTransaction,
     rollbackTransaction,
     closePool,
-};
+};
