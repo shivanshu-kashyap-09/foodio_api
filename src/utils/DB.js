@@ -1,10 +1,17 @@
-// Database configuration
-const mysql = require('mysql2');
-const connection = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
+const Database = require('./Database');
 
-module.exports = connection;
+// Re-export methods to maintain compatibility with existing code
+const DB = {
+    query: (sql, values, callback) => {
+        Database.query(sql, values)
+            .then(results => callback(null, results))
+            .catch(err => callback(err));
+    },
+    execute: (sql, values, callback) => {
+        Database.query(sql, values)
+            .then(results => callback(null, results))
+            .catch(err => callback(err));
+    }
+};
+
+module.exports = DB;

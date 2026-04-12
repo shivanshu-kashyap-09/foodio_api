@@ -19,6 +19,8 @@ async function initializePool() {
             connectionLimit: config.database.connectionLimit,
             queueLimit: config.database.queueLimit,
             enableKeepAlive: config.database.enableKeepAlive,
+            keepAliveInitialDelayMs: config.database.keepAliveInitialDelayMs,
+            connectTimeout: config.database.connectTimeout,
             charset: config.database.charset,
         });
 
@@ -29,6 +31,7 @@ async function initializePool() {
 
         logger.info('Database connection pool initialized successfully', {
             host: config.database.host,
+            port: config.database.port,
             database: config.database.database,
             poolSize: config.database.connectionLimit,
         });

@@ -52,6 +52,50 @@ route.get('/analytics', authMiddleware, restaurantOnly, async (req, res) => {
 });
 
 /**
+ * GET /api/restaurant/dashboard/trending
+ * Get top selling dishes
+ */
+route.get('/trending', authMiddleware, restaurantOnly, async (req, res) => {
+    try {
+        const resId = req.user.restaurant_id || req.user.id;
+        const dishes = await dashboardService.getTrendingDishes(resId);
+        return res.status(200).json({
+            success: true,
+            data: dishes,
+            message: 'Trending dishes fetched successfully'
+        });
+    } catch (error) {
+        logger.error('Failed to fetch trending', { error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch trending dishes'
+        });
+    }
+});
+
+/**
+ * GET /api/restaurant/dashboard/trends
+ * Get order count trends
+ */
+route.get('/trends', authMiddleware, restaurantOnly, async (req, res) => {
+    try {
+        const resId = req.user.restaurant_id || req.user.id;
+        const trends = await dashboardService.getOrderTrends(resId);
+        return res.status(200).json({
+            success: true,
+            data: trends,
+            message: 'Order trends fetched successfully'
+        });
+    } catch (error) {
+        logger.error('Failed to fetch trends', { error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order trends'
+        });
+    }
+});
+
+/**
  * GET /api/restaurant/dashboard/orders
  * Get incoming orders
  */

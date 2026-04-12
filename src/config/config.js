@@ -37,12 +37,11 @@ const config = {
         database: process.env.DB_NAME || 'foodio',
         port: parseInt(process.env.DB_PORT, 10) || 3306,
         waitForConnections: true,
-        connectTimeout: 10000,
-    acquireTimeout: 10000,
-        connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 10,
+        connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 5, // Reduced default pool size for remote DBs
         queueLimit: 0,
         enableKeepAlive: true,
-        keepAliveInitialDelayMs: 0,
+        keepAliveInitialDelayMs: 10000,
+        connectTimeout: 20000, // 20 seconds timeout for initial connection
         charset: 'utf8mb4',
         collate: 'utf8mb4_unicode_ci',
     },
@@ -138,10 +137,24 @@ const config = {
     // OAuth
     oauth: {
         google: {
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            callbackUrl: process.env.GOOGLE_CALLBACK_URL || `${process.env.APP_URL}/auth/google/callback`,
+            clientId: (process.env.GOOGLE_CLIENT_ID || '').trim(),
+            clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
+            redirectUrl: (process.env.GOOGLE_REDIRECT_URL || `${process.env.URL}/auth/google/callback`).trim(),
+            oauthUrl: process.env.GOOGLE_OAUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
+            accessTokenUrl: process.env.GOOGLE_ACCESS_TOKEN_URL || 'https://oauth2.googleapis.com/token',
+            tokenInfoUrl: process.env.GOOGLE_TOKEN_INFO_URL || 'https://oauth2.googleapis.com/tokeninfo',
+            userInfoUrl: 'https://www.googleapis.com/oauth2/v2/userinfo',
+            frontendSuccessUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
         },
+    },
+
+    // Delivery Service (Borzo - Formerly MrSpeedy)
+    delivery: {
+        borzo: {
+            apiToken: process.env.BORZO_API_TOKEN,
+            apiUrl: process.env.BORZO_API_URL || 'https://robot-in.borzodelivery.com',
+            isTest: process.env.BORZO_IS_TEST === 'true',
+        }
     },
 
     // Pagination

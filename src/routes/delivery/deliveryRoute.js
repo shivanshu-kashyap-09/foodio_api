@@ -29,6 +29,28 @@ route.get('/pending-orders', authMiddleware, deliveryOnly, async (req, res) => {
 });
 
 /**
+ * GET /api/delivery/stats
+ * Get delivery partner stats
+ */
+route.get('/stats', authMiddleware, deliveryOnly, async (req, res) => {
+    try {
+        const partnerId = req.user.partner_id || req.user.id;
+        const stats = await deliveryService.getPartnerStats(partnerId);
+        return res.status(200).json({
+            success: true,
+            data: stats,
+            message: 'Stats fetched successfully'
+        });
+    } catch (error) {
+        logger.error('Failed to fetch partner stats', { error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch partner stats'
+        });
+    }
+});
+
+/**
  * POST /api/delivery/accept-order
  * Accept a delivery task
  */

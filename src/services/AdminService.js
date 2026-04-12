@@ -6,7 +6,7 @@ const logger = new Logger('AdminService');
 class AdminService {
     async getDashboardStats() {
         try {
-            const revenueSql = "SELECT SUM(total) as totalRevenue FROM orders WHERE delivery_status = 'Delivered'";
+            const revenueSql = "SELECT SUM(total_amount) as totalRevenue FROM orders WHERE status = 'Delivered'";
             const ordersSql = "SELECT COUNT(*) as totalOrders FROM orders";
             const usersSql = "SELECT COUNT(*) as totalUsers FROM user";
             const activeUsersSql = "SELECT COUNT(*) as activeUsers FROM user WHERE user_verify = 1";
@@ -28,6 +28,25 @@ class AdminService {
         }
     }
 
+    async getRevenueAnalytics() {
+        try {
+            const sql = `
+                SELECT 
+                    MONTHNAME(created_at) as month, 
+                    SUM(total_amount) as revenue 
+                FROM orders 
+                WHERE status = 'Delivered' 
+                AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                GROUP BY MONTH(created_at), MONTHNAME(created_at)
+                ORDER BY MONTH(created_at) ASC
+            `;
+            return await Database.query(sql);
+        } catch (error) {
+            logger.error('Failed to fetch revenue analytics', { error: error.message });
+            throw error;
+        }
+    }
+
     async getRecentOrders() {
         try {
             const sql = "SELECT * FROM orders ORDER BY order_id DESC LIMIT 10";
@@ -43,7 +62,7 @@ class AdminService {
             // Check all restaurant tables
             const veg = await Database.query("SELECT *, 'veg' as type FROM vegrestaurant WHERE is_approved = 0");
             const nonVeg = await Database.query("SELECT *, 'nonveg' as type FROM nonvegrestaurant WHERE is_approved = 0");
-            const south = await Database.query("SELECT *, 'southindian' as type FROM southindianrestaurants WHERE is_approved = 0");
+            const south = await Database.query("SELECT *, 'southindian' as type FROM southindianrestaurant WHERE is_approved = 0");
 
             return [...veg, ...nonVeg, ...south];
         } catch (error) {
@@ -57,7 +76,7 @@ class AdminService {
             let table = '';
             if (type === 'veg') table = 'vegrestaurant';
             else if (type === 'nonveg') table = 'nonvegrestaurant';
-            else if (type === 'southindian') table = 'southindianrestaurants';
+            else if (type === 'southindian') table = 'southindianrestaurant';
 
             if (!table) throw new Error('Invalid restaurant type');
 

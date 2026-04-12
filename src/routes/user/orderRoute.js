@@ -49,8 +49,8 @@ router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) 
     if (!Validator.isPositiveNumber(restaurantId) && restaurantId !== 0) {
         errors.push('Restaurant ID must be a positive number');
     }
-    if (!restaurantType || !['veg', 'nonveg', 'southindian'].includes(restaurantType.toLowerCase())) {
-        errors.push('Restaurant type must be one of: veg, nonveg, southindian');
+    if (!restaurantType || !['veg', 'nonveg', 'southindian', 'thali'].includes(restaurantType.toLowerCase())) {
+        errors.push('Restaurant type must be one of: veg, nonveg, southindian, thali');
     }
     if (!Array.isArray(items) || items.length === 0) {
         errors.push('Items array is required and must not be empty');
@@ -64,8 +64,8 @@ router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) 
     if (!Validator.isValidPhone(phone)) {
         errors.push('Valid phone number is required (10+ digits)');
     }
-    if (!paymentMethod || !['card', 'upi', 'cash', 'wallet'].includes(paymentMethod.toLowerCase())) {
-        errors.push('Payment method must be one of: card, upi, cash, wallet');
+    if (!paymentMethod || !['card', 'upi', 'cash', 'wallet', 'online'].includes(paymentMethod.toLowerCase())) {
+        errors.push('Payment method must be one of: card, upi, cash, wallet, online');
     }
 
     if (errors.length > 0) {

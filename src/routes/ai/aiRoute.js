@@ -78,10 +78,10 @@ route.post('/chatbot', authMiddleware, async (req, res) => {
  * GET /api/ai/insights/:resId
  * Get AI insights for a restaurant
  */
-route.get('/insights/:resId', authMiddleware, async (req, res) => {
+route.get('/insights', authMiddleware, async (req, res) => {
     try {
-        const { resId } = req.params;
-        const insights = await aiService.getRestaurantInsights(resId);
+        const userId = req.user.id;
+        const insights = await aiService.getRestaurantInsights(userId);
         return res.status(200).json({
             success: true,
             data: insights,
