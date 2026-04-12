@@ -37,6 +37,8 @@ const config = {
         database: process.env.DB_NAME || 'foodio',
         port: parseInt(process.env.DB_PORT, 10) || 3306,
         waitForConnections: true,
+        connectTimeout: 10000,
+    acquireTimeout: 10000,
         connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 10,
         queueLimit: 0,
         enableKeepAlive: true,
