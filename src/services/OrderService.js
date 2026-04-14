@@ -6,6 +6,7 @@
 const Database = require('../utils/Database');
 const Cache = require('../utils/Cache');
 const Logger = require('../utils/Logger');
+const OrderNotificationService = require('./OrderNotificationService');
 
 const logger = new Logger('OrderService');
 
@@ -30,19 +31,25 @@ class OrderService {
             } = orderData;
 
             // Insert order
+            const addressParts = (deliveryAddress || '').split(',').map(p => p.trim());
+            const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2] : addressParts[0] || 'Unknown';
+            const deliveryCharges = 50.00; // Fixed delivery charges for now
+
             const orderQuery = `
                 INSERT INTO orders (
                     user_id,
                     items,
                     restaurant_id,
                     delivery_address,
+                    city,
                     phone,
                     special_instructions,
                     payment_method,
                     total_amount,
+                    delivery_charges,
                     status,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `;
 
             const orderResult = await connection.execute(orderQuery, [
@@ -50,10 +57,12 @@ class OrderService {
                 items.length,
                 restaurantId,
                 deliveryAddress,
+                city,
                 phone || null,
                 specialInstructions,
                 paymentMethod,
                 totalAmount,
+                deliveryCharges,
                 'pending',
             ]);
 
@@ -65,16 +74,18 @@ class OrderService {
                     INSERT INTO orderdishes (
                         order_id,
                         dish_id,
+                        dish_name,
                         dish_type,
                         quantity,
                         price,
                         created_at
-                    ) VALUES (?, ?, ?, ?, ?, NOW())
+                    ) VALUES (?, ?, ?, ?, ?, ?, NOW())
                 `;
 
                 await connection.execute(dishQuery, [
                     orderId,
                     item.itemId || null,
+                    item.dishName || 'Unknown Dish',
                     item.dishType || null,
                     item.quantity || 0,
                     item.price || 0,
@@ -85,11 +96,21 @@ class OrderService {
 
             logger.info('Order created', { orderId, userId, totalAmount });
 
+            // Notify nearby delivery partners
+            OrderNotificationService.notifyNewOrderToPartners({
+                order_id: orderId,
+                city,
+                total_amount: totalAmount,
+                delivery_charges: deliveryCharges
+            });
+
             return {
                 orderId,
                 userId,
                 restaurantId: restaurantId,
                 totalAmount: totalAmount,
+                deliveryCharges: deliveryCharges,
+                city,
                 status: 'pending',
                 items,
             };

@@ -6,25 +6,33 @@ const WebSocketManager = require('../utils/WebSocketManager');
 const logger = new Logger('DeliveryService');
 
 class DeliveryService {
-    async getPendingOrders() {
+    async getPendingOrders(city) {
         try {
-            const sql = "SELECT * FROM orders WHERE status = 'Ready' AND delivery_partner_id IS NULL";
-            return await Database.query(sql);
+            let sql = "SELECT * FROM orders WHERE status = 'pending' AND delivery_partner_id IS NULL";
+            const params = [];
+            if (city) {
+                sql += " AND city = ?";
+                params.push(city);
+            }
+            return await Database.query(sql, params);
         } catch (error) {
-            logger.error('Failed to fetch pending orders', { error: error.message });
+            logger.error('Failed to fetch pending orders', { city, error: error.message });
             throw error;
         }
     }
 
     async getPartnerStats(partnerId) {
         try {
-            const sql = "SELECT * FROM delivery_partner WHERE partner_id = ?";
-            const partner = await Database.queryOne(sql, [partnerId]);
-            const completedSql = "SELECT COUNT(*) as completed FROM orders WHERE delivery_partner_id = ? AND status = 'Delivered'";
-            const earningsSql = "SELECT SUM(total_amount * 0.1) as earnings FROM orders WHERE delivery_partner_id = ? AND status = 'Delivered'"; // 10% commission
+            const sql = "SELECT * FROM delivery_partners WHERE id = ? OR user_id = ?";
+            const partner = await Database.queryOne(sql, [partnerId, partnerId]);
+            
+            if (!partner) return null;
 
-            const completed = await Database.queryOne(completedSql, [partnerId]);
-            const earnings = await Database.queryOne(earningsSql, [partnerId]);
+            const completedSql = "SELECT COUNT(*) as completed FROM orders WHERE delivery_partner_id = ? AND status = 'Delivered'";
+            const earningsSql = "SELECT SUM(delivery_charges) as earnings FROM orders WHERE delivery_partner_id = ? AND status = 'Delivered'";
+
+            const completed = await Database.queryOne(completedSql, [partner.id]);
+            const earnings = await Database.queryOne(earningsSql, [partner.id]);
 
             return {
                 ...partner,
@@ -48,11 +56,52 @@ class DeliveryService {
     }
 
     async acceptOrder(orderId, partnerId) {
+        let connection;
         try {
-            const sql = "UPDATE orders SET delivery_partner_id = ?, status = 'Accepted' WHERE order_id = ?";
-            return await Database.query(sql, [partnerId, orderId]);
+            connection = await Database.beginTransaction();
+
+            // 1. Get order with lock to prevent race condition
+            const checkSql = "SELECT delivery_partner_id, status FROM orders WHERE order_id = ? FOR UPDATE";
+            const [orderRows] = await connection.query(checkSql, [orderId]);
+
+            if (!orderRows || orderRows.length === 0) {
+                throw new Error('Order not found');
+            }
+
+            if (orderRows[0].delivery_partner_id !== null) {
+                throw new Error('Order already accepted by another partner');
+            }
+
+            // 2. Fetch partner details to save in order table
+            const partnerSql = "SELECT name, phone FROM delivery_partners WHERE user_id = ? OR id = ?";
+            const [partnerRows] = await connection.query(partnerSql, [partnerId, partnerId]);
+            const partnerName = partnerRows.length > 0 ? partnerRows[0].name : 'Delivery Partner';
+            const partnerPhone = partnerRows.length > 0 ? partnerRows[0].phone : '';
+
+            // 3. Assign partner and update status
+            const updateSql = "UPDATE orders SET delivery_partner_id = ?, delivery_partner_name = ?, delivery_partner_phone = ?, status = 'confirmed' WHERE order_id = ?";
+            await connection.query(updateSql, [partnerId, partnerName, partnerPhone, orderId]);
+
+            await Database.commitTransaction(connection);
+            
+            // Notify user
+            WebSocketManager.broadcastOrderStatusUpdate(orderId, { status: 'confirmed' });
+
+            return { success: true, message: 'Order accepted' };
         } catch (error) {
-            logger.error('Failed to accept order', { error: error.message });
+            if (connection) await Database.rollbackTransaction(connection);
+            logger.error('Failed to accept order', { orderId, partnerId, error: error.message });
+            throw error;
+        }
+    }
+
+    async toggleStatus(partnerId, status) {
+        try {
+            const sql = "UPDATE delivery_partners SET status = ? WHERE id = ? OR user_id = ?";
+            const result = await Database.query(sql, [status, partnerId, partnerId]);
+            return result;
+        } catch (error) {
+            logger.error('Failed to toggle partner status', { partnerId, status, error: error.message });
             throw error;
         }
     }

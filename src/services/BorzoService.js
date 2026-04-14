@@ -36,14 +36,14 @@ class BorzoService {
             const response = await axios.post(`${this.apiUrl}/api/business/1.1/calculate-order`, payload, {
                 headers: this.headers
             });
-
+            logger.info('calculatePrice response', { response: response.data });
             if (response.data.success) {
                 return response.data;
             } else {
                 throw new Error(response.data.errors?.join(', ') || 'Price calculation failed');
             }
         } catch (error) {
-            logger.error('calculatePrice error', { error: error.message });
+            logger.error('calculatePrice error', { error: error });
             throw error;
         }
     }

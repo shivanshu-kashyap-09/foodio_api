@@ -8,9 +8,48 @@ const Cache = require('../utils/Cache');
 const Logger = require('../utils/Logger');
 const MailerService = require('./MailerService');
 
+const WebSocketManager = require('../utils/WebSocketManager');
+
 const logger = new Logger('OrderNotificationService');
 
 class OrderNotificationService {
+    /**
+     * Notify all online delivery partners in a city about a new order
+     * @param {Object} orderData - Order data
+     */
+    static async notifyNewOrderToPartners(orderData) {
+        try {
+            const { order_id, city, total_amount, delivery_charges } = orderData;
+            
+            // 1. Get all online delivery partners in the same city
+            const sql = `
+                SELECT u.user_id 
+                FROM user u
+                JOIN delivery_partners dp ON u.user_id = dp.user_id
+                WHERE dp.status = 'available' AND dp.city = ?
+            `;
+            const partners = await Database.query(sql, [city]);
+
+            const notification = {
+                title: 'New Order Available! 🛍️',
+                message: `New order #${order_id} in ${city}. Grab it now!`,
+                orderId: order_id,
+                total: total_amount,
+                charges: delivery_charges,
+                type: 'order.new_available'
+            };
+
+            // 2. Send via WebSocket to each partner
+            for (const partner of partners) {
+                WebSocketManager.broadcastNotification(partner.user_id, notification);
+            }
+
+            logger.info('New order notification sent to partners', { order_id, city, partnerCount: partners.length });
+        } catch (error) {
+            logger.error('notifyNewOrderToPartners error', { error: error.message });
+        }
+    }
+
     /**
      * Send notification for order status change
      * @param {number} orderId - Order ID

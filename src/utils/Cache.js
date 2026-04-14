@@ -13,7 +13,19 @@ async function initializeRedis() {
     try {
         client = new Redis(config.redis.url, {
             maxRetriesPerRequest: null,
-            retryStrategy: (times) => Math.min(times * 50, 2000),
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 100, 3000);
+                return delay;
+            },
+            reconnectOnError: (err) => {
+                const targetError = 'READONLY';
+                if (err.message.includes(targetError)) {
+                    return true;
+                }
+                return false;
+            },
+            keepAlive: 10000, // 10 seconds
+            enableReadyCheck: true,
         });
 
         // Events

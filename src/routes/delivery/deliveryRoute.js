@@ -155,4 +155,34 @@ route.put('/location', authMiddleware, deliveryOnly, async (req, res) => {
     }
 });
 
+/**
+ * PUT /api/delivery/toggle-status
+ * Toggle online/offline status
+ */
+route.put('/toggle-status', authMiddleware, deliveryOnly, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const partnerId = req.user.partner_id || req.user.id;
+        
+        if (!['available', 'offline'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status. Use available (online) or offline.'
+            });
+        }
+
+        await deliveryService.toggleStatus(partnerId, status);
+        return res.status(200).json({
+            success: true,
+            message: `Status updated to ${status === 'available' ? 'Online' : 'Offline'}`
+        });
+    } catch (error) {
+        logger.error('Failed to toggle status', { error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update status'
+        });
+    }
+});
+
 module.exports = route;
