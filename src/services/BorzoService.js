@@ -22,28 +22,29 @@ class BorzoService {
     async calculatePrice(points) {
         try {
             const payload = {
-                type: 'cms_order',
+                type: 'standard',
                 matter: 'Food Delivery',
                 points: points.map(p => ({
                     address: p.address,
                     contact_person: {
-                        phone: p.phone,
-                        name: p.name || ''
+                        phone: p.phone || p.contact_person?.phone,
+                        name: p.name || p.contact_person?.name || ''
                     }
                 }))
             };
 
-            const response = await axios.post(`${this.apiUrl}/api/business/1.1/calculate-order`, payload, {
+            const response = await axios.post(`${this.apiUrl}/api/business/1.6/calculate-order`, payload, {
                 headers: this.headers
             });
-
-            if (response.data.success) {
+            console.log("============= BORZO CALCULATE BACKEND RAW RESPONSE =============", JSON.stringify(response.data, null, 2));
+            if (response.data.is_successful) {
                 return response.data;
             } else {
                 throw new Error(response.data.errors?.join(', ') || 'Price calculation failed');
             }
         } catch (error) {
-            logger.error('calculatePrice error', { error: error.message });
+            console.error('============= BORZO CALCULATE BACKEND RAW ERROR =============', error?.response?.data || error.message);
+            logger.error('calculatePrice error', { error: error });
             throw error;
         }
     }
@@ -56,29 +57,32 @@ class BorzoService {
     async createOrder(orderData) {
         try {
             const payload = {
-                type: 'cms_order',
+                type: 'standard',
                 matter: orderData.matter || 'Food Delivery',
                 points: orderData.points.map(p => ({
                     address: p.address,
                     contact_person: {
-                        phone: p.phone,
-                        name: p.name || ''
+                        phone: p.phone || p.contact_person?.phone,
+                        name: p.name || p.contact_person?.name || ''
                     },
                     buyout_amount: p.buyout_amount || 0,
                     note: p.note || ''
                 }))
             };
 
-            const response = await axios.post(`${this.apiUrl}/api/business/1.1/create-order`, payload, {
+            const response = await axios.post(`${this.apiUrl}/api/business/1.6/create-order`, payload, {
                 headers: this.headers
             });
 
-            if (response.data.success) {
+            console.log("============= BORZO BACKEND RAW RESPONSE =============", JSON.stringify(response.data, null, 2));
+
+            if (response.data.is_successful) {
                 return response.data;
             } else {
                 throw new Error(response.data.errors?.join(', ') || 'Order creation failed');
             }
         } catch (error) {
+            console.error('============= BORZO BACKEND RAW ERROR =============', error?.response?.data || error.message);
             logger.error('createOrder error', { error: error.message });
             throw error;
         }
@@ -91,11 +95,11 @@ class BorzoService {
      */
     async getOrderStatus(orderId) {
         try {
-            const response = await axios.get(`${this.apiUrl}/api/business/1.1/orders?order_id=${orderId}`, {
+            const response = await axios.post(`${this.apiUrl}/api/business/1.6/orders`, { order_id: orderId }, {
                 headers: this.headers
             });
 
-            if (response.data.success) {
+            if (response.data.is_successful) {
                 return response.data.orders[0];
             } else {
                 throw new Error(response.data.errors?.join(', ') || 'Failed to fetch order status');
@@ -113,11 +117,11 @@ class BorzoService {
      */
     async cancelOrder(orderId) {
         try {
-            const response = await axios.post(`${this.apiUrl}/api/business/1.1/cancel-order`, { order_id: orderId }, {
+            const response = await axios.post(`${this.apiUrl}/api/business/1.6/cancel-order`, { order_id: orderId }, {
                 headers: this.headers
             });
 
-            if (response.data.success) {
+            if (response.data.is_successful) {
                 return response.data;
             } else {
                 throw new Error(response.data.errors?.join(', ') || 'Order cancellation failed');

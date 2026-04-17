@@ -124,7 +124,7 @@ router.put('/:orderId/tracking/status', authenticateToken, asyncHandler(async (r
         return ResponseFormatter.error(res, 400, 'Invalid order ID');
     }
 
-    if (!status || !['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'].includes(status)) {
+    if (!status || !['pending', 'confirmed', 'preparing', 'ready', 'picked', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'].includes(status)) {
         return ResponseFormatter.error(res, 400, 'Invalid status');
     }
 

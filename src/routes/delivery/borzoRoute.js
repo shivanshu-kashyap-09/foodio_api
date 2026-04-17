@@ -28,12 +28,23 @@ router.post('/calculate', authenticateToken, async (req, res) => {
  */
 router.post('/create', authenticateToken, async (req, res) => {
     try {
-        const { orderData } = req.body;
+        const { orderData, localOrderId } = req.body;
         if (!orderData || !orderData.points || orderData.points.length < 2) {
             return ResponseFormatter.error(res, 400, 'Invalid order data');
         }
 
         const result = await borzoService.createOrder(orderData);
+        
+        // Connect Borzo reference to local Foodio order if provided
+        if (localOrderId && result?.order?.order_id) {
+            const Database = require('../../utils/Database');
+            const trackingUrl = result.order.points[0]?.tracking_url || result.order.points[1]?.tracking_url || null;
+            await Database.query(
+                'UPDATE orders SET borzo_order_id = ?, borzo_tracking_url = ? WHERE order_id = ?',
+                [result.order.order_id, trackingUrl, localOrderId]
+            );
+        }
+
         return ResponseFormatter.success(res, 201, 'Delivery order created successfully', result);
     } catch (error) {
         return ResponseFormatter.error(res, 500, error.message);

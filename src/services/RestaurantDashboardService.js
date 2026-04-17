@@ -1,6 +1,9 @@
 const Database = require('../utils/Database');
 const Logger = require('../utils/Logger');
 const WebSocketManager = require('../utils/WebSocketManager');
+const OrderTrackingService = require('./OrderTrackingService');
+const OrderService = require('./OrderService');
+const OrderNotificationService = require('./OrderNotificationService');
 
 const logger = new Logger('RestaurantDashboardService');
 
@@ -102,14 +105,57 @@ class RestaurantDashboardService {
         }
     }
 
-    async updateOrderStatus(orderId, status) {
+    async updateOrderStatus(orderId, status, userId, reason = '') {
         try {
-            const sql = "UPDATE orders SET status = ? WHERE order_id = ?";
-            const result = await Database.query(sql, [status, orderId]);
-            
-            WebSocketManager.broadcastOrderStatusUpdate(orderId, { 
-                status, 
-                message: `Order status updated to ${status}` 
+            const currentOrder = await Database.queryOne('SELECT order_id, status, delivery_partner_id, user_id FROM orders WHERE order_id = ?', [orderId]);
+            if (!currentOrder) {
+                throw new Error('Order not found');
+            }
+
+            if (['picked', 'out_for_delivery', 'delivered'].includes(currentOrder.status)) {
+                throw new Error('Order can no longer be updated by the restaurant after handover');
+            }
+
+            const allowedTransitions = {
+                pending: ['confirmed', 'cancelled'],
+                confirmed: ['preparing', 'cancelled'],
+                preparing: ['ready', 'cancelled'],
+                ready: ['cancelled'],
+            };
+
+            if (!allowedTransitions[currentOrder.status] || !allowedTransitions[currentOrder.status].includes(status)) {
+                throw new Error(`Cannot transition from ${currentOrder.status} to ${status}`);
+            }
+
+            if (status === 'cancelled') {
+                return await OrderService.cancelOrder(orderId, 'restaurant', userId, reason || 'Cancelled by restaurant');
+            }
+
+            const result = await OrderTrackingService.updateOrderStatusWithTracking(orderId, status, {
+                userId,
+                changeType: 'admin',
+                reason: reason || `Restaurant updated status to ${status}`
+            });
+
+            if (status === 'ready') {
+                const otp = await OrderService.createOrderOtp(orderId, 'handover', 15);
+
+                if (currentOrder.delivery_partner_id) {
+                    const partnerUser = await Database.queryOne(
+                        `SELECT u.user_gmail, u.user_id FROM delivery_partners dp JOIN user u ON dp.user_id = u.user_id WHERE dp.id = ? OR dp.user_id = ? LIMIT 1`,
+                        [currentOrder.delivery_partner_id, currentOrder.delivery_partner_id]
+                    );
+                    if (partnerUser && partnerUser.user_gmail) {
+                        await OrderNotificationService.notifyStatusChange(orderId, partnerUser.user_id, 'ready', {
+                            metadata: { handoverOtp: otp, message: 'Order is ready for pickup. Use OTP to verify at handover.' }
+                        });
+                    }
+                }
+            }
+
+            WebSocketManager.broadcastOrderStatusUpdate(orderId, {
+                status,
+                message: `Order status updated to ${status}`
             });
 
             return result;

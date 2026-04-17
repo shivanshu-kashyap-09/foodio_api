@@ -47,8 +47,8 @@ class RestaurantService {
                 pages: Math.ceil(total / limit),
             };
 
-            // Cache for 10 minutes
-            await Cache.set(cacheKey, response, 600);
+            // Cache restaurant page results for 1 week
+            await Cache.set(cacheKey, response, 604800);
 
             return response;
         } catch (error) {
@@ -70,7 +70,7 @@ class RestaurantService {
             }
 
             const tableName = `${type.toLowerCase()}restaurant`;
-            const query = `SELECT * FROM ${tableName} WHERE id = ?`;
+            const query = `SELECT * FROM ${tableName} WHERE res_id = ?`;
 
             const result = await Database.queryOne(query, [id]);
 

@@ -123,14 +123,14 @@ route.get('/orders', authMiddleware, restaurantOnly, async (req, res) => {
  */
 route.put('/order-status', authMiddleware, restaurantOnly, async (req, res) => {
     try {
-        const { orderId, status } = req.body;
+        const { orderId, status, reason } = req.body;
         if (!orderId || !status) {
             return res.status(400).json({
                 success: false,
                 message: 'Incomplete parameters'
             });
         }
-        await dashboardService.updateOrderStatus(orderId, status);
+        await dashboardService.updateOrderStatus(orderId, status, req.user.id, reason);
         return res.status(200).json({
             success: true,
             message: 'Order status updated successfully'
@@ -139,7 +139,7 @@ route.put('/order-status', authMiddleware, restaurantOnly, async (req, res) => {
         logger.error('Failed to update status', { error: error.message });
         return res.status(500).json({
             success: false,
-            message: 'Failed to update status'
+            message: error.message || 'Failed to update status'
         });
     }
 });
