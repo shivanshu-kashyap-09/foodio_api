@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const Database = require("../utils/Database");
 const OrderTrackingService = require("../services/OrderTrackingService");
+const OrderService = require("../services/OrderService");
 
 // 🔥 RUN EVERY 1 MINUTE
 cron.schedule("* * * * *", async () => {
@@ -21,7 +22,6 @@ cron.schedule("* * * * *", async () => {
       if (order.status === "pending" && !order.delivery_partner_id && diffInMinutes >= 2) {
         console.log(`🤖 Auto-assigning Dummy Partner to Order #${order.order_id}`);
         
-        // Assign dummy partner details to order
         await Database.query(`
           UPDATE orders 
           SET delivery_partner_id = 1, 
@@ -31,14 +31,15 @@ cron.schedule("* * * * *", async () => {
         `, [order.order_id]);
         
         nextStatus = "confirmed";
-      } 
-      // 🔥 2. REGULAR FLOW (If partner is assigned or it's past pending)
-      else if (order.delivery_partner_id || order.status !== "pending") {
-        if (diffInMinutes > 1 && order.status === "pending") nextStatus = "confirmed";
-        else if (diffInMinutes > 2 && order.status === "confirmed") nextStatus = "preparing";
-        else if (diffInMinutes > 4 && order.status === "preparing") nextStatus = "ready";
-        else if (diffInMinutes > 6 && order.status === "ready") nextStatus = "out_for_delivery";
-        else if (diffInMinutes > 10 && order.status === "out_for_delivery") nextStatus = "delivered";
+      } else if (order.status === "confirmed" && diffInMinutes > 5) {
+        console.log(`⌛ Cancelling order #${order.order_id} due to no restaurant activity`);
+        await OrderService.cancelOrder(order.order_id, 'system', null, 'No restaurant action within 5 minutes');
+      } else if (order.status === "preparing" && diffInMinutes > 10) {
+        console.log(`⌛ Cancelling order #${order.order_id} due to prolonged preparation inactivity`);
+        await OrderService.cancelOrder(order.order_id, 'system', null, 'No preparation progress within 10 minutes');
+      } else if (order.status === "ready" && diffInMinutes > 5) {
+        console.log(`⌛ Cancelling order #${order.order_id} due to no pickup from delivery partner`);
+        await OrderService.cancelOrder(order.order_id, 'system', null, 'No pickup after readiness within 5 minutes');
       }
 
       if (nextStatus) {

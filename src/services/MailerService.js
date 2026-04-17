@@ -114,10 +114,7 @@ async function sendOtpEmail(email, otp) {
             throw new Error('Email and OTP are required');
         }
 
-        const mailTransporter = getTransporter();
-
-        const mailOptions = {
-            from: `"FOODIO" <${process.env.MAIL}>`,
+        return await sendMail({
             to: email,
             subject: 'FOODIO Password Reset - OTP',
             html: `
@@ -127,8 +124,7 @@ async function sendOtpEmail(email, otp) {
                         We received a request to reset your FOODIO account password.
                     </p>
                     <p style="color: #666; line-height: 1.6;">
-                        Use this One-Time Password (OTP) to reset your password:
-                    </p>
+                        Use this One-Time Password (OTP) to reset your password:</p>
                     <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; 
                                 text-align: center; margin: 20px 0;">
                         <h3 style="color: #FF6B35; letter-spacing: 2px; margin: 0; font-size: 24px;">
@@ -148,13 +144,101 @@ async function sendOtpEmail(email, otp) {
                     </p>
                 </div>
             `,
-        };
-
-        await mailTransporter.sendMail(mailOptions);
-        console.log(`[MailerService] OTP email sent to ${email}`);
+        });
     } catch (error) {
         console.error('[MailerService.sendOtpEmail] Error:', error);
         throw new Error('Failed to send OTP email');
+    }
+}
+
+async function sendMail({ to, subject, html, text }) {
+    try {
+        if (!to || !subject || (!html && !text)) {
+            throw new Error('Email to, subject, and content are required');
+        }
+
+        const mailTransporter = getTransporter();
+        const mailOptions = {
+            from: `"FOODIO" <${process.env.MAIL}>`,
+            to,
+            subject,
+            html,
+            text,
+        };
+
+        await mailTransporter.sendMail(mailOptions);
+        console.log(`[MailerService] Email sent to ${to} (${subject})`);
+    } catch (error) {
+        console.error('[MailerService.sendMail] Error:', error);
+        throw new Error('Failed to send email');
+    }
+}
+
+async function sendOrderCancellationEmail(email, orderId, cancelledBy) {
+    try {
+        if (!email || !orderId || !cancelledBy) {
+            throw new Error('Email, orderId, and cancelledBy are required');
+        }
+
+        const subject = `Order Cancelled - #${orderId}`;
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Order Cancelled</h2>
+                <p style="color: #666; line-height: 1.6;">
+                    Your order <strong>#${orderId}</strong> has been cancelled.
+                </p>
+                <p style="color: #666; line-height: 1.6;">
+                    Cancellation initiated by <strong>${cancelledBy}</strong>.
+                </p>
+                <p style="color: #666; line-height: 1.6;">
+                    If you have any questions, please contact support at <a href="mailto:${process.env.MAIL}">${process.env.MAIL}</a>.
+                </p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="color: #999; font-size: 11px;">
+                    FOODIO Order Management Team
+                </p>
+            </div>
+        `;
+
+        return await sendMail({ to: email, subject, html });
+    } catch (error) {
+        console.error('[MailerService.sendOrderCancellationEmail] Error:', error);
+        throw new Error('Failed to send order cancellation email');
+    }
+}
+
+async function sendDeliveryOtpNotification(email, orderId, otp) {
+    try {
+        if (!email || !orderId || !otp) {
+            throw new Error('Email, orderId, and OTP are required');
+        }
+
+        const subject = `Delivery OTP for Order #${orderId}`;
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Delivery Verification OTP</h2>
+                <p style="color: #666; line-height: 1.6;">
+                    Use the following OTP to complete delivery for order <strong>#${orderId}</strong>.
+                </p>
+                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; 
+                            text-align: center; margin: 20px 0;">
+                    <h3 style="color: #FF6B35; letter-spacing: 2px; margin: 0; font-size: 24px;">
+                        ${otp}
+                    </h3>
+                </div>
+                <p style="color: #666; line-height: 1.6;">
+                    This OTP will expire in 20 minutes.
+                </p>
+                <p style="color: #999; font-size: 12px;">
+                    Do not share this OTP with anyone else.
+                </p>
+            </div>
+        `;
+
+        return await sendMail({ to: email, subject, html });
+    } catch (error) {
+        console.error('[MailerService.sendDeliveryOtpNotification] Error:', error);
+        throw new Error('Failed to send delivery OTP email');
     }
 }
 
@@ -280,6 +364,9 @@ module.exports = {
     getTransporter,
     sendVerificationEmail,
     sendOtpEmail,
+    sendMail,
+    sendOrderCancellationEmail,
+    sendDeliveryOtpNotification,
     sendWelcomeEmail,
     sendAccountDeletionEmail,
     verifyConnection,

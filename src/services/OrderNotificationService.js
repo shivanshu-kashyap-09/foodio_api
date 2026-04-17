@@ -67,35 +67,36 @@ class OrderNotificationService {
                 type: `order.${status}`,
             };
 
-            // Save notification to database
-            const insertQuery = `
-                INSERT INTO order_notifications (
-                    order_id, user_id, notification_type, title, message,
-                    channel, metadata, is_read, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, NOW())
-            `;
-
-            for (const channel of channels) {
-                await Database.query(insertQuery, [
-                    orderId,
-                    userId,
-                    notification.type,
-                    notification.title,
-                    notification.message,
-                    channel,
-                    JSON.stringify(metadata),
-                ]);
+            // Try to save notification to database (optional - may not exist)
+            try {
+                const insertQuery = `
+                    INSERT INTO order_notifications (
+                        order_id, user_id, notification_type, title, message,
+                        channel, metadata, is_read, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, NOW())
+                `;
+                for (const channel of channels) {
+                    await Database.query(insertQuery, [
+                        orderId, userId, notification.type,
+                        notification.title, notification.message,
+                        channel, JSON.stringify(metadata),
+                    ]);
+                }
+            } catch (dbErr) {
+                // Table may not exist - silently skip DB insert
+                logger.warn('order_notifications DB insert skipped', { error: dbErr.message });
             }
 
-            // Send notifications
+            // Send WebSocket / push notifications
             await this._sendNotifications(userId, notification, channels, metadata);
 
             logger.info('Status change notification sent', { orderId, userId, status, channels });
 
             return notification;
         } catch (error) {
+            // Do NOT throw - notifications are non-critical
             logger.error('notifyStatusChange error', { orderId, userId, error: error.message });
-            throw error;
+            return null;
         }
     }
 
@@ -120,41 +121,34 @@ class OrderNotificationService {
                 type: 'delivery.update',
             };
 
-            const metadata = {
-                deliveryPartnerName,
-                estimatedArrival,
-                currentLocation,
-            };
+            const metadata = { deliveryPartnerName, estimatedArrival, currentLocation };
 
-            // Save to database
-            const insertQuery = `
-                INSERT INTO order_notifications (
-                    order_id, user_id, notification_type, title, message,
-                    channel, metadata, is_read, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, NOW())
-            `;
-
-            for (const channel of channels) {
-                await Database.query(insertQuery, [
-                    orderId,
-                    userId,
-                    notification.type,
-                    notification.title,
-                    notification.message,
-                    channel,
-                    JSON.stringify(metadata),
-                ]);
+            // Try to save (optional)
+            try {
+                const insertQuery = `
+                    INSERT INTO order_notifications (
+                        order_id, user_id, notification_type, title, message,
+                        channel, metadata, is_read, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, NOW())
+                `;
+                for (const channel of channels) {
+                    await Database.query(insertQuery, [
+                        orderId, userId, notification.type,
+                        notification.title, notification.message,
+                        channel, JSON.stringify(metadata),
+                    ]);
+                }
+            } catch (dbErr) {
+                logger.warn('order_notifications DB insert skipped', { error: dbErr.message });
             }
 
-            // Send notifications
             await this._sendNotifications(userId, notification, channels, metadata);
-
             logger.info('Delivery update notification sent', { orderId, userId });
-
             return notification;
         } catch (error) {
+            // Do NOT throw - notifications are non-critical
             logger.error('notifyDeliveryUpdate error', { orderId, userId, error: error.message });
-            throw error;
+            return null;
         }
     }
 

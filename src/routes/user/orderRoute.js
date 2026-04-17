@@ -106,7 +106,7 @@ router.post('/:userId/orders', authenticateToken, asyncHandler(async (req, res) 
  */
 router.get('/:userId/orders', authenticateToken, asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 100 } = req.query;
 
     // Authorization check
     if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
@@ -259,7 +259,12 @@ router.put('/:userId/orders/:orderId/cancel', authenticateToken, asyncHandler(as
     }
 
     try {
-        const order = await OrderService.cancelOrder(parseInt(orderId), parseInt(userId));
+        const order = await OrderService.cancelOrder(
+            parseInt(orderId),
+            'user',
+            req.user.id,
+            req.body.reason || 'Cancelled by user'
+        );
         logger.info('Order cancelled', { orderId, userId });
 
         return ResponseFormatter.success(res, 200, 'Order cancelled successfully', order);

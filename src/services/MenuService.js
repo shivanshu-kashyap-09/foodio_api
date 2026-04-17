@@ -45,8 +45,8 @@ class MenuService {
                 pages: Math.ceil(total / limit),
             };
 
-            // Cache for 10 minutes
-            await Cache.set(cacheKey, response, 600);
+            // Cache menu page results for 1 week
+            await Cache.set(cacheKey, response, 604800);
 
             return response;
         } catch (error) {
