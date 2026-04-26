@@ -20,15 +20,27 @@ async function initializePool() {
             database: config.database.database,
             port: config.database.port,
             waitForConnections: true,
-            connectionLimit: 4, // Reduced to 4 to leave room for one-off connections/tools
+            connectionLimit: 3, // Reduced from 5 to avoid hitting filess.io hard cap during parallel dashboard calls
             queueLimit: 0,
             enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
             connectTimeout: 20000,
             charset: config.database.charset,
             // Optimized for remote/limited DBs like filess.io
-            maxIdle: 4,
+            maxIdle: 10,
             idleTimeout: 30000, // Close idle connections after 30s
             dateStrings: true, // Return dates as strings to avoid timezone confusion
+        });
+
+        // Add pool error listener to handle unexpected connection closures
+        pool.on('error', (err) => {
+            logger.error('Unexpected error on idle database connection', { 
+                error: err.message, 
+                code: err.code 
+            });
+            if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+                pool = null; // Mark pool for re-initialization on next query
+            }
         });
 
         // Test connection
@@ -38,7 +50,7 @@ async function initializePool() {
 
         logger.info('Database connection pool initialized successfully', {
             host: config.database.host,
-            poolSize: 4,
+            poolSize: 5,
         });
 
         return pool;

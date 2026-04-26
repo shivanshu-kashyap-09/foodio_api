@@ -144,7 +144,6 @@ app.use('/api/thali/dishes', require('./src/routes/thali/thaliDish'));
 app.use('/api/admin', require('./src/routes/admin/adminRoute'));
 app.use('/api/restaurant/dashboard', require('./src/routes/restaurant/dashboardRoute'));
 app.use('/api/delivery', require('./src/routes/delivery/deliveryRoute'));
-app.use('/api/delivery/borzo', require('./src/routes/delivery/borzoRoute'));
 app.use('/api/ai', require('./src/routes/ai/aiRoute'));
 
 

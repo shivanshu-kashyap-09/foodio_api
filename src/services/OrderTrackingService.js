@@ -98,9 +98,7 @@ class OrderTrackingService {
                     } : null,
                     estimatedDeliveryTime: order.estimated_delivery_time,
                     actualDeliveryTime: order.actual_delivery_time,
-                    distance: order.delivery_distance_km,
-                    borzoTrackingUrl: order.borzo_tracking_url,
-                    borzoOrderId: order.borzo_order_id
+                    distance: order.delivery_distance_km
                 },
                 tracking: {
                     statusHistory,

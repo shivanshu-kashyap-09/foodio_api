@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config/config');
+const LogEventBus = require('./LogEventBus');
 
 // Create logs directory if it doesn't exist
 const logsDir = config.logging.dir;
@@ -84,6 +85,10 @@ class Logger {
                 this.writeToFile(level, message, data);
             }
         }
+
+        // Always push to the in-memory bus for real-time SSE streaming
+        // (regardless of log level filter — admins should see everything)
+        LogEventBus.push(level, this.context, message, data);
     }
 
     error(message, data = null) {

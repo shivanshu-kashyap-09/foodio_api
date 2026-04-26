@@ -15,9 +15,9 @@ const logger = new Logger('AuthMiddleware');
  */
 const authenticateToken = (req, res, next) => {
     try {
-        // Get token from header
+        // Get token from Authorization header, or fall back to ?token= query param (needed for SSE EventSource)
         const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
+        const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
         if (!token) {
             logger.warn('No token provided', { path: req.path, ip: req.ip });

@@ -148,15 +148,6 @@ const config = {
         },
     },
 
-    // Delivery Service (Borzo - Formerly MrSpeedy)
-    delivery: {
-        borzo: {
-            apiToken: process.env.BORZO_API_TOKEN,
-            apiUrl: process.env.BORZO_API_URL || 'https://robot-in.borzodelivery.com',
-            isTest: process.env.BORZO_IS_TEST === 'true',
-        }
-    },
-
     // Pagination
     pagination: {
         defaultLimit: 10,
@@ -178,6 +169,13 @@ const config = {
         maxNameLength: 100,
         minPhoneLength: 10,
     },
+    
+    // Twilio
+    twilio: {
+        accountSid: process.env.TWILIO_ACCOUNT_SID,
+        authToken: process.env.TWILIO_AUTH_TOKEN,
+        phoneNumber: process.env.TWILIO_PHONE_NUMBER
+    }
 };
 
 // Validate critical config values

@@ -132,7 +132,7 @@ route.put('/update/profile', authMiddleware, uploadMiddleware.single('user_img')
       user_phone: user_phone ? user_phone.trim() : undefined,
       user_gmail: user_gmail ? user_gmail.toLowerCase().trim() : undefined,
       user_address: user_address ? user_address.trim() : undefined,
-      user_img: req.file ? req.file.path : undefined
+      user_img: req.file ? `/uploads/${req.file.filename}` : undefined
     };
 
     const profile = await authService.updateUserProfile(req.user.id, updateData);
