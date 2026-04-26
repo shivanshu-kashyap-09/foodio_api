@@ -98,15 +98,13 @@ class OrderService {
 
             logger.info('Order created', { orderId, userId, totalAmount });
 
-            // Notify nearby delivery partners (Commented out for Borzo integration)
-            /*
+            // Notify nearby delivery partners
             OrderNotificationService.notifyNewOrderToPartners({
                 order_id: orderId,
                 city,
                 total_amount: totalAmount,
                 delivery_charges: deliveryCharges
             });
-            */
 
             return {
                 orderId,

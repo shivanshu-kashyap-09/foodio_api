@@ -1,9 +1,32 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
 .env
-.env.example
-.tmp_env_check.js
+.env.test
+.env.local
+
+# Debug and Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Database files
 foodio.sql
+dumps/
+*.sql
+*.sqlite
 
-/node_modules
+# Uploads (User generated content)
+uploads/
+storage/
 
-/uploads
+# Misc
+.DS_Store
+.tmp_env_check.js
 
+# IDEs
+.vscode/
+.idea/
+*.sw?

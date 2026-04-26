@@ -25,20 +25,23 @@ class RestaurantDashboardService {
         try {
             // Get earnings trend for the last 7 days
             const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
+            if (!user) throw new Error("User not found");
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
             const sql = `
                 SELECT 
                     DATE(created_at) as date, 
                     SUM(total_amount) as earnings 
                 FROM orders 
-                WHERE (restaurant_phone = ? OR restaurant_id IN (
-                    SELECT res_id FROM vegrestaurant WHERE res_phone = ?
-                    UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?
-                    UNION SELECT res_id FROM southindianrestaurant WHERE res_phone = ?
+                WHERE (restaurant_phone LIKE ? OR restaurant_id IN (
+                    SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM southindianrestaurant WHERE res_phone LIKE ?
                 )) AND status = 'Delivered' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
                 GROUP BY DATE(created_at)
                 ORDER BY DATE(created_at) ASC
             `;
-            return await Database.query(sql, [user.user_phone, user.user_phone, user.user_phone, user.user_phone]);
+            return await Database.query(sql, [phonePattern, phonePattern, phonePattern, phonePattern]);
         } catch (error) {
             logger.error('Failed to fetch analytics', { error: error.message });
             throw error;
@@ -48,21 +51,23 @@ class RestaurantDashboardService {
     async getTrendingDishes(userId) {
         try {
             const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
-            const phone = user.user_phone;
+            if (!user) throw new Error("User not found");
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
             const sql = `
                 SELECT dish_name, dish_image, dish_rating, COUNT(*) as orders
                 FROM (
-                    SELECT dish_name, dish_image, dish_rating FROM vegmenu WHERE restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone = ?)
+                    SELECT dish_name, dish_image, dish_rating FROM vegmenu WHERE restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ?)
                     UNION ALL
-                    SELECT dish_name, dish_image, dish_rating FROM nonvegmenu WHERE restaurant_id IN (SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?)
+                    SELECT dish_name, dish_image, dish_rating FROM nonvegmenu WHERE restaurant_id IN (SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?)
                     UNION ALL
-                    SELECT dish_name, dish_image, dish_rating FROM southindianmenu WHERE restaurant_id IN (SELECT res_id FROM southindianrestaurant WHERE res_phone = ?)
+                    SELECT dish_name, dish_image, dish_rating FROM southindianmenu WHERE restaurant_id IN (SELECT res_id FROM southindianrestaurant WHERE res_phone LIKE ?)
                 ) as all_dishes
                 GROUP BY dish_name, dish_image, dish_rating
                 ORDER BY dish_rating DESC
                 LIMIT 3
             `;
-            return await Database.query(sql, [phone, phone, phone]);
+            return await Database.query(sql, [phonePattern, phonePattern, phonePattern]);
         } catch (error) {
             logger.error('Failed to fetch trending dishes', { error: error.message });
             throw error;
@@ -72,22 +77,24 @@ class RestaurantDashboardService {
     async getOrderTrends(userId) {
         try {
             const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
-            const phone = user.user_phone;
+            if (!user) throw new Error("User not found");
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
             const sql = `
                 SELECT 
                     MONTHNAME(created_at) as month, 
                     COUNT(*) as count 
                 FROM orders 
-                WHERE (restaurant_phone = ? OR restaurant_id IN (
-                    SELECT res_id FROM vegrestaurant WHERE res_phone = ?
-                    UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?
-                    UNION SELECT res_id FROM southindianrestaurant WHERE res_phone = ?
+                WHERE (restaurant_phone LIKE ? OR restaurant_id IN (
+                    SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM southindianrestaurant WHERE res_phone LIKE ?
                 ))
                 AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
                 GROUP BY MONTH(created_at), MONTHNAME(created_at)
                 ORDER BY MONTH(created_at) ASC
             `;
-            return await Database.query(sql, [phone, phone, phone, phone]);
+            return await Database.query(sql, [phonePattern, phonePattern, phonePattern, phonePattern]);
         } catch (error) {
             logger.error('Failed to fetch order trends', { error: error.message });
             throw error;
@@ -97,8 +104,11 @@ class RestaurantDashboardService {
     async getIncomingOrders(userId) {
         try {
             const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
-            const sql = "SELECT * FROM orders WHERE (restaurant_phone = ? OR restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone = ? UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?)) AND status != 'Delivered' ORDER BY order_id DESC";
-            return await Database.query(sql, [user.user_phone, user.user_phone, user.user_phone]);
+            if (!user) throw new Error("User not found");
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
+            const sql = "SELECT * FROM orders WHERE (restaurant_phone LIKE ? OR restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ? UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?)) AND status != 'Delivered' ORDER BY order_id DESC";
+            return await Database.query(sql, [phonePattern, phonePattern, phonePattern]);
         } catch (error) {
             logger.error('Failed to fetch incoming orders', { error: error.message });
             throw error;
@@ -179,34 +189,36 @@ class RestaurantDashboardService {
     }
 
     async _findStatsAcrossTypes(userId) {
-        const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
-        const phone = user.user_phone;
-        
-        const statsSql = `
-            SELECT 
-                COALESCE(SUM(total_amount), 0) as earnings, 
-                COUNT(*) as orders,
-                COUNT(DISTINCT user_id) as customers
-            FROM orders 
-            WHERE (restaurant_phone = ? OR restaurant_id IN (
-                SELECT res_id FROM vegrestaurant WHERE res_phone = ?
-                UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?
-                UNION SELECT res_id FROM southindianrestaurant WHERE res_phone = ?
-            )) AND status = 'Delivered'
-        `;
-        
-        const ratingSql = `
-            SELECT AVG(rating) as avg_rating FROM (
-                SELECT dish_rating as rating FROM vegmenu WHERE restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone = ?)
-                UNION ALL
-                SELECT dish_rating as rating FROM nonvegmenu WHERE restaurant_id IN (SELECT res_id FROM nonvegrestaurant WHERE res_phone = ?)
-                UNION ALL
-                SELECT dish_rating as rating FROM southindianmenu WHERE restaurant_id IN (SELECT res_id FROM southindianrestaurant WHERE res_phone = ?)
-            ) as all_ratings
-        `;
+            const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
+            if (!user) return { earnings: 0, orders: 0, customers: 0, avg_rating: "0.0" };
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
+            
+            const statsSql = `
+                SELECT 
+                    COALESCE(SUM(total_amount), 0) as earnings, 
+                    COUNT(*) as orders,
+                    COUNT(DISTINCT user_id) as customers
+                FROM orders 
+                WHERE (restaurant_phone LIKE ? OR restaurant_id IN (
+                    SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?
+                    UNION SELECT res_id FROM southindianrestaurant WHERE res_phone LIKE ?
+                )) AND status = 'Delivered'
+            `;
+            
+            const ratingSql = `
+                SELECT AVG(rating) as avg_rating FROM (
+                    SELECT dish_rating as rating FROM vegmenu WHERE restaurant_id IN (SELECT res_id FROM vegrestaurant WHERE res_phone LIKE ?)
+                    UNION ALL
+                    SELECT dish_rating as rating FROM nonvegmenu WHERE restaurant_id IN (SELECT res_id FROM nonvegrestaurant WHERE res_phone LIKE ?)
+                    UNION ALL
+                    SELECT dish_rating as rating FROM southindianmenu WHERE restaurant_id IN (SELECT res_id FROM southindianrestaurant WHERE res_phone LIKE ?)
+                ) as all_ratings
+            `;
 
-        const stats = await Database.queryOne(statsSql, [phone, phone, phone, phone]);
-        const rating = await Database.queryOne(ratingSql, [phone, phone, phone]);
+            const stats = await Database.queryOne(statsSql, [phonePattern, phonePattern, phonePattern, phonePattern]);
+            const rating = await Database.queryOne(ratingSql, [phonePattern, phonePattern, phonePattern]);
 
         return {
             ...stats,
@@ -259,8 +271,10 @@ class RestaurantDashboardService {
             const resTable = this._getRestaurantTable(type);
             const user = await Database.queryOne("SELECT user_phone FROM user WHERE user_id = ?", [userId]);
             if (!user) return null;
+            const cleanPhone = user.user_phone.replace(/\D/g, '').slice(-10);
+            const phonePattern = `%${cleanPhone}`;
             
-            const restaurant = await Database.queryOne(`SELECT res_id FROM ${resTable} WHERE res_phone = ?`, [user.user_phone]);
+            const restaurant = await Database.queryOne(`SELECT res_id FROM ${resTable} WHERE res_phone LIKE ?`, [phonePattern]);
             return restaurant ? restaurant.res_id : null;
         } catch (error) {
             logger.error('Failed to resolve restaurant ID', { userId, type });
